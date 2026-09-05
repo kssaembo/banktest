@@ -119,6 +119,7 @@ const DepositWithdrawView: React.FC = () => {
                             <th className="p-3 text-left w-[22.5%]">번호</th>
                             <th className="p-3 text-left w-[25%]">이름</th>
                             <th className="p-3 text-left w-[16%]">계좌</th>
+                            <th className="p-3 text-right w-[20%]">현재 잔액</th>
                             <th className="p-3 text-center w-[40%]">작업</th>
                         </tr>
                     </thead>
@@ -128,6 +129,7 @@ const DepositWithdrawView: React.FC = () => {
                                 <td className="p-2">{s.grade}-{s.class} {s.number}</td>
                                 <td className="p-2 font-medium">{s.name}</td>
                                 <td className="p-2 font-mono text-xs">{s.account?.accountId.split(' ').pop()}</td>
+                                <td className="p-2 text-right font-bold text-indigo-700 whitespace-nowrap">{(s.account?.balance ?? 0).toLocaleString()} {unit}</td>
                                 <td className="p-2 text-center">
                                     <div className="flex justify-center gap-2">
                                         <button onClick={() => { setSelectedStudent(s); setMode('deposit'); }} className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 text-base whitespace-nowrap">입금</button>
@@ -436,7 +438,7 @@ const AddStockModal: React.FC<{onClose: ()=>void, onComplete: ()=>void}> = ({onC
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-sm">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
                 <h3 className="text-xl font-bold mb-4">새 주식 종목 추가</h3>
                 <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="종목명" className="w-full p-3 border rounded-lg mb-2"/>
                 <input type="number" step="0.1" value={price} onChange={e => setPrice(e.target.value)} placeholder="초기 가격" className="w-full p-3 border rounded-lg"/>
@@ -465,7 +467,7 @@ const UpdatePriceModal: React.FC<{stock: StockProduct, onClose: ()=>void, onComp
     
     return (
          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-sm">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
                 <h3 className="text-xl font-bold mb-4">{stock.name} 가격 변경</h3>
                 <input type="number" step="0.1" value={price} onChange={e => setPrice(e.target.value)} placeholder="새로운 가격" className="w-full p-3 border rounded-lg"/>
                 <button onClick={handleSubmit} disabled={loading} className="mt-4 w-full p-3 bg-indigo-600 text-white font-bold rounded-lg">변경하기</button>

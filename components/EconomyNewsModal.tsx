@@ -1,13 +1,19 @@
 import React, { useEffect } from 'react';
 import { XIcon, NewspaperIcon } from './icons';
+import { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
+import { User } from '../types';
+import EconomyNewsPanel from '../features/economy-news/EconomyNewsPanel';
 
 interface EconomyNewsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  newsUrl: string;
+  user?: User;
+  onBalanceChanged?: () => void;
 }
 
-export const EconomyNewsModal: React.FC<EconomyNewsModalProps> = ({ isOpen, onClose, newsUrl }) => {
+export const EconomyNewsModal: React.FC<EconomyNewsModalProps> = ({ isOpen, onClose, user, onBalanceChanged }) => {
+  const { currentUser } = useContext(AuthContext);
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -51,9 +57,8 @@ export const EconomyNewsModal: React.FC<EconomyNewsModalProps> = ({ isOpen, onCl
           </div>
         </div>
 
-        {/* iframe 본문 */}
         <div className="flex-1 w-full h-full bg-white relative">
-          <div className="p-8 text-gray-700 leading-relaxed">테스트 환경에서는 기존 경제뉴스 서비스에 연결하지 않습니다. 뉴스 연동은 별도의 테스트 환경이 준비된 후 확인합니다.</div>
+          {(user || currentUser) ? <EconomyNewsPanel user={(user || currentUser)!} onBalanceChanged={onBalanceChanged} /> : <div className="p-8 text-gray-700">로그인 정보를 확인할 수 없습니다.</div>}
         </div>
       </div>
     </div>

@@ -354,7 +354,7 @@ const TransferView: React.FC<{ currentUser: User, account: Account, refreshAccou
                         <label className="block text-xs font-black text-gray-800 mb-2 ml-1 uppercase">받는 친구 계좌번호</label>
                         <div className="flex">
                             <span className="p-4 bg-gray-100 border border-r-0 rounded-l-2xl text-gray-700 font-black text-sm whitespace-nowrap">{bankName}</span>
-                            <input type="text" value={targetAccountId} onChange={e => setTargetAccountId(e.target.value)} className="w-full p-4 border rounded-r-2xl outline-none focus:ring-4 focus:ring-indigo-50/50 font-bold text-gray-900" placeholder="000-000" />
+                            <input type="text" value={targetAccountId} onChange={e => setTargetAccountId(e.target.value)} className="w-full p-4 border rounded-r-2xl outline-none focus:ring-4 focus:ring-indigo-50/50 font-bold text-gray-900" placeholder="예)060101" />
                         </div>
                         {recipientInfo && (
                             <div className="mt-2 text-xs text-indigo-800 font-bold flex items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100 animate-fadeIn">
@@ -793,7 +793,7 @@ const JoinSavingsModal: React.FC<{
     
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn" onClick={onClose}>
-            <div className="bg-white rounded-[40px] p-10 max-sm w-full text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-[40px] p-8 md:p-10 w-full max-w-sm text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
                 <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <NewPiggyBankIcon className="w-10 h-10" />
                 </div>
@@ -851,7 +851,7 @@ const JoinFundModal: React.FC<{
     
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn" onClick={onClose}>
-            <div className="bg-white rounded-[40px] p-10 max-sm w-full text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-[40px] p-8 md:p-10 w-full max-w-sm text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
                 <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
                     <NewFundIcon className="w-10 h-10" />
                 </div>
@@ -1569,17 +1569,6 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     useEffect(() => { refreshAccount(); }, [refreshAccount]);
 
-    const newsUrl = useMemo(() => {
-        const user = activeStudent || currentUser;
-        if (!user) return 'https://kidseconews.vercel.app/';
-        const params = new URLSearchParams();
-        params.append('name', user.name);
-        params.append('grade', String(user.grade || ''));
-        params.append('class', String(user.class || ''));
-        params.append('number', String(user.number || ''));
-        return `https://kidseconews.vercel.app/?${params.toString()}`;
-    }, [currentUser, activeStudent]);
-
     if (!currentUser) return null;
 
     // 공통 화폐 단위 결정 (효과적 사용자 객체 또는 현재 사용자 객체에서 참조)
@@ -1744,12 +1733,13 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
             <EconomyNewsModal 
                 isOpen={showNewsModal}
                 onClose={() => setShowNewsModal(false)}
-                newsUrl={newsUrl}
+                user={{...effectiveUser, currencyUnit: currentUnit}}
+                onBalanceChanged={refreshAccount}
             />
 
             {notification && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 animate-fadeIn" onClick={() => setNotification(null)}>
-                    <div className="bg-white rounded-[40px] p-10 max-sm w-full text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-[40px] p-8 md:p-10 w-full max-w-sm text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
                         {notification.type === 'success' ? (
                             <div className="w-20 h-20 bg-green-50 rounded-[28px] flex items-center justify-center mx-auto mb-6"><CheckIcon className="w-10 h-10 text-green-600" /></div>
                         ) : (

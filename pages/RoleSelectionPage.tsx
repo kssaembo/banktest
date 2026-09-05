@@ -1,8 +1,6 @@
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { api } from '../services/api';
-import { Role, Account } from '../types';
 import { MainAdminIcon, MainBankIcon, MainMartIcon, StudentIcon, LogoutIcon, NewspaperIcon, HeartIcon } from '../components/icons';
 import { EconomyReadingModal } from '../components/EconomyReadingModal';
 import { EconomyTypingModal } from '../components/EconomyTypingModal';
@@ -14,24 +12,9 @@ interface RoleSelectionPageProps {
 
 const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
   const { currentUser, logout } = useContext(AuthContext);
-  const [teacherAccount, setTeacherAccount] = useState<Account | null>(null);
   const [showReadingModal, setShowReadingModal] = useState(false);
   const [showTypingModal, setShowTypingModal] = useState(false);
   const [showNewsModal, setShowNewsModal] = useState(false);
-
-  // 자동 로그인을 위해 선생님의 국고 계좌(qrToken 포함) 정보를 가져옵니다.
-  useEffect(() => {
-    if (currentUser?.role === Role.TEACHER) {
-      api.getTeacherAccount()
-        .then(setTeacherAccount)
-        .catch(err => console.error("선생님 계좌 정보를 가져오는데 실패했습니다.", err));
-    }
-  }, [currentUser]);
-
-  // 경제 뉴스 서비스 주소에 토큰을 포함시킵니다.
-  const newsUrl = teacherAccount?.qrToken 
-    ? `https://kidseconews.vercel.app/?token=${teacherAccount.qrToken}`
-    : `https://kidseconews.vercel.app/`;
 
   const roles = [
     { 
@@ -154,7 +137,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
         </div>
 
         {/* 경제 뉴스 모달 */}
-        <EconomyNewsModal isOpen={showNewsModal} onClose={() => setShowNewsModal(false)} newsUrl={newsUrl} />
+        <EconomyNewsModal isOpen={showNewsModal} onClose={() => setShowNewsModal(false)} />
 
         {/* 경제 상식 알기 모달 */}
         <EconomyReadingModal isOpen={showReadingModal} onClose={() => setShowReadingModal(false)} />

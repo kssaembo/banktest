@@ -8,7 +8,8 @@ import { QRCodeSVG } from 'qrcode.react';
 
 // --- Helpers ---
 const getQrBaseUrl = () => {
-    return window.location.origin;
+    const configuredUrl = import.meta.env.VITE_PUBLIC_APP_URL?.trim();
+    return (configuredUrl || window.location.origin).replace(/\/$/, '');
 };
 
 const getDDay = (targetDateStr: string) => {
@@ -65,7 +66,7 @@ const MessageModal: React.FC<{
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-sm flex flex-col items-center text-center">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm flex flex-col items-center text-center">
                 {type === 'success' ? <CheckIcon className="w-12 h-12 text-green-500 mb-4" /> : <ErrorIcon className="w-12 h-12 text-red-500 mb-4" />}
                 <h3 className={`text-xl font-bold mb-2 ${type === 'success' ? 'text-gray-900' : 'text-red-600'}`}>
                     {type === 'success' ? '성공' : '오류'}
@@ -350,7 +351,7 @@ const AssignJobModal: React.FC<{ job: Job, students: User[], onClose: () => void
                 <h3 className="text-xl font-bold mb-4">학생 배정: {job.jobName}</h3>
                 <div className="flex-grow overflow-y-auto space-y-1 mb-4">
                     {students.map(s => (
-                        <button key={s.userId} onClick={() => toggleStudent(s.userId)} className={`w-full flex justify-between items-center p-3 rounded-lg border transition-colors ${selectedIds.includes(s.userId) ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-gray-100 hover:bg-gray-50 text-gray-600'}`}>
+                        <button key={s.userId} onClick={() => toggleStudent(s.userId)} className={`w-full flex justify-between items-center p-3.5 rounded-xl border-2 shadow-sm transition-all ${selectedIds.includes(s.userId) ? 'border-indigo-600 bg-indigo-50 text-indigo-800 shadow-indigo-100' : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/40 text-slate-700'}`}>
                             <span className="font-medium">{s.grade}-{s.class} {s.number} {s.name}</span>
                             {selectedIds.includes(s.userId) && <CheckIcon className="w-5 h-5" />}
                         </button>
@@ -394,7 +395,7 @@ const AddTaxModal: React.FC<{ students: User[], onClose: () => void, onComplete:
                 <div className="space-y-4 mb-4">
                     <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="세금 명칭 (예: 건강보험)" className="w-full p-3 border rounded-lg" />
                     <input type="number" step="1" value={amount} onChange={e => setAmount(e.target.value)} placeholder="금액" className="w-full p-3 border rounded-lg" />
-                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full p-3 border rounded-lg" />
+                    <label className="block text-sm font-bold text-gray-700">납부 마감일<input aria-label="납부 마감일" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="mt-1.5 w-full p-3 border rounded-lg" /></label>
                 </div>
                 <div className="flex-grow overflow-y-auto border rounded-lg p-2 mb-4">
                     <div className="flex justify-between items-center px-2 mb-2">
@@ -535,6 +536,7 @@ const IssueCurrencyModal: React.FC<{ onClose: () => void, onComplete: () => void
     const { currentUser } = useContext(AuthContext);
     const [amount, setAmount] = useState('');
     const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const unit = currentUser?.currencyUnit || '권';
 
     const handleSubmit = async () => {
@@ -546,15 +548,16 @@ const IssueCurrencyModal: React.FC<{ onClose: () => void, onComplete: () => void
             const msg = typeof res === 'object' && (res as any)?.message 
                 ? (res as any).message 
                 : (typeof res === 'string' ? res : `${amount}${unit} 화폐가 성공적으로 발행되었습니다.`);
-            alert(msg);
             await onComplete();
-            onClose();
+            setResult({ type: 'success', text: msg });
         } catch (e: any) {
-            alert(e.message || '발행 중 오류가 발생했습니다.');
+            setResult({ type: 'error', text: e.message || '발행 중 오류가 발생했습니다.' });
         } finally {
             setLoading(false);
         }
     };
+
+    if (result) return <MessageModal isOpen type={result.type} message={result.text} onClose={() => { setResult(null); onClose(); }} />;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
@@ -1121,7 +1124,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
 
              {showHistoryModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowHistoryModal(false)}>
-                    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-sm md:max-w-4xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm md:max-w-4xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-4 border-b pb-3">
                             <h3 className="text-xl font-bold text-gray-800 flex items-center">
                                 <ManageIcon className="w-5 h-5 mr-2 text-[#2B548F]"/> {alias} 지갑 내역 (국고)

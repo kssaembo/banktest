@@ -1042,8 +1042,8 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
                       }
 
                       return (
-                        <span key={index} className={`${charColor} ${bgClass} px-0.5 inline-block transition-colors font-mono`}>
-                          {char}
+                        <span key={index} aria-label={char === ' ' ? '띄어쓰기' : undefined} className={`${charColor} ${bgClass} ${char === ' ' ? 'mx-0.5 min-w-[0.9em] rounded bg-slate-100 text-slate-400' : 'px-0.5'} inline-block transition-colors font-mono`}>
+                          {char === ' ' ? '·' : char}
                         </span>
                       );
                     })}

@@ -652,7 +652,7 @@ const AuthPage: React.FC = () => {
     if (recoveryModalVisible) {
         return (
             <div className="fixed inset-0 bg-white/80 backdrop-blur-xl flex items-center justify-center z-[100] p-4">
-                <div className="bg-white rounded-[32px] p-10 max-sm w-full shadow-[0_32px_64px_rgba(0,0,0,0.1)] border border-gray-100 animate-fadeIn text-center">
+                <div className="bg-white rounded-[32px] p-8 md:p-10 w-full max-w-sm shadow-[0_32px_64px_rgba(0,0,0,0.1)] border border-gray-100 animate-fadeIn text-center">
                     <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <CheckIcon className="w-8 h-8 text-[#0066FF]" />
                     </div>
