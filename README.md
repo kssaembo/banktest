@@ -13,6 +13,11 @@ Supabase 모드에서는 테스트 관리자 입장 후 기존 교사·학생 �
 03번 SQL의 권한은 가상 DB 전체를 시험하는 관리자 권한이며 운영 학생별 권한 체계가 아닙니다.
 원격 Supabase 연결 및 브라우저 기능 검증은 아직 완료되지 않았습니다.
 
+학생 QR이 Vercel의 보호된 미리보기 주소를 가리키지 않도록 새 Vercel 프로젝트에
+`VITE_PUBLIC_APP_URL=https://banktest-taupe.vercel.app`을 설정합니다. 경제뉴스는 앱 안에 통합되어
+직접 기사 등록·열람·의견 등록이 가능합니다. AI 추천·요약은 `supabase/functions` 배포와
+Supabase 서버 비밀값 설정 후 활성화됩니다. Gemini나 Naver 비밀키를 Vite 환경변수에 넣으면 안 됩니다.
+
 ## 시작하기
 
 Node.js 22 이상에서 다음을 실행합니다.
