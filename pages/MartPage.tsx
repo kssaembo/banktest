@@ -91,7 +91,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
     return (
         <div className="flex h-full bg-gray-100">
             {/* Sidebar for Desktop */}
-            <aside className="hidden md:flex flex-col w-56 bg-white/80 backdrop-blur-sm border-r p-4">
+            <aside className="hidden md:flex w-56 shrink-0 flex-col bg-white/80 backdrop-blur-sm border-r p-4">
                 <div className="px-2">
                     <h1 className="text-xl font-bold text-gray-800">마트 모드</h1>
                     <p className="text-sm text-gray-500">{currentUser?.name}</p>
@@ -124,7 +124,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                 </header>
 
                 <main className="flex-grow overflow-y-auto bg-[#D1D3D8]">
-                    <div className="flex justify-end bg-[#D1D3D8] px-4 pt-4"><FeatureGuide title="마트 모드 사용 안내" items={[
+                    <div className="flex flex-wrap items-center gap-3 bg-[#D1D3D8] px-4 pt-4"><h2 className="text-2xl font-black text-slate-800">{view==='pos'?'마트 계산대':view==='items'?'품목 관리':view==='transfer'?'마트 송금':'마트 세부내역'}</h2><FeatureGuide title={`${view==='pos'?'마트 계산대':view==='items'?'품목 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} label={`${view==='pos'?'마트 계산대':view==='items'?'품목 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} items={[
                         { title: '품목을 준비해요', description: '품목 관리에서 자주 판매하는 상품과 가격을 등록합니다.' },
                         { title: '계산대에서 선택해요', description: '학생을 고른 뒤 상품을 누르면 합계가 자동으로 입력됩니다. 금액을 직접 입력할 수도 있습니다.' },
                         { title: '거래를 확인해요', description: '결제 후 세부내역에서 금액과 시간을 확인하고, 송금 탭에서 마트 잔액을 이동합니다.' }
@@ -299,6 +299,7 @@ const PaymentView: React.FC<{
                 </div>
             </div>
 
+            {items.length > 0 && <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm"><div className="mb-3 flex items-center justify-between"><p className="font-black text-gray-700">등록 품목</p><span className="text-xs text-gray-400">눌러서 합계 입력</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">{items.map(item => <button key={item.id} onClick={() => addItem(item)} className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-left hover:border-blue-400"><span className="block truncate text-sm font-black text-gray-800">{item.name}</span><span className="text-xs font-bold text-blue-700">{item.price.toLocaleString()}{unit}{cart[item.id] ? ` × ${cart[item.id]}` : ''}</span></button>)}</div></div>}
             <div className="flex-grow flex flex-col md:flex-row md:gap-8 justify-between">
                 <div className="flex-grow flex items-center justify-center text-center p-4">
                      <div><p className="text-5xl font-mono font-bold tracking-tight text-gray-800 break-all sm:text-6xl">
@@ -308,7 +309,6 @@ const PaymentView: React.FC<{
                 </div>
                 
                 <div className="w-full md:w-72 flex flex-col">
-                    {items.length > 0 && <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm"><div className="mb-2 flex items-center justify-between"><p className="text-xs font-black text-gray-700">등록 품목</p><span className="text-[10px] text-gray-400">눌러서 합계 입력</span></div><div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto">{items.map(item => <button key={item.id} onClick={() => addItem(item)} className="rounded-xl border border-blue-100 bg-blue-50 p-2 text-left hover:border-blue-400"><span className="block truncate text-xs font-black text-gray-800">{item.name}</span><span className="text-[11px] font-bold text-blue-700">{item.price.toLocaleString()}{unit}{cart[item.id] ? ` × ${cart[item.id]}` : ''}</span></button>)}</div></div>}
                     <div className="grid grid-cols-3 gap-2 mb-2">
                         <KeypadButton value="1" />
                         <KeypadButton value="2" />
@@ -345,7 +345,7 @@ const ItemManagementView: React.FC<{ teacherId: string; items: MartItem[]; refre
     const remove = async (item: MartItem) => { if (!window.confirm(`'${item.name}' 품목을 삭제할까요?`)) return; await api.deleteMartItem(item.id); await refresh(); };
     return <div className="space-y-5 p-4 md:p-6">
         <OverviewCards items={[{label:'등록 품목',value:`${items.length}개`},{label:'판매 중',value:`${items.filter(i=>i.is_active).length}개`,color:'text-emerald-600'},{label:'평균 가격',value:`${Math.round(items.reduce((s,i)=>s+i.price,0)/Math.max(1,items.length)).toLocaleString()}${unit}`,color:'text-blue-600'},{label:'분류',value:`${new Set(items.map(i=>i.category)).size}개`}]} />
-        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-black text-gray-900">새 품목 추가</h2><div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]"><input value={name} onChange={e=>setName(e.target.value)} placeholder="상품명" className="rounded-xl border p-3"/><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder={`가격 (${unit})`} className="rounded-xl border p-3"/><input value={category} onChange={e=>setCategory(e.target.value)} placeholder="분류" className="rounded-xl border p-3"/><button disabled={busy} onClick={add} className="rounded-xl bg-[#2B548F] px-6 py-3 font-black text-white disabled:opacity-50">추가</button></div></section>
+        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-black text-gray-900">새 품목 추가</h2><div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_8rem]"><input value={name} onChange={e=>setName(e.target.value)} placeholder="상품명" className="rounded-xl border p-3"/><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder={`가격 (${unit})`} className="rounded-xl border p-3"/><input value={category} onChange={e=>setCategory(e.target.value)} placeholder="분류" className="rounded-xl border p-3"/><button disabled={busy} onClick={add} className="min-w-32 whitespace-nowrap rounded-xl bg-[#2B548F] px-8 py-3 font-black text-white disabled:opacity-50">추가</button></div></section>
         <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-black text-gray-900">품목 목록</h2><div className="space-y-2">{items.map(item=><div key={item.id} className={`flex items-center justify-between gap-4 rounded-xl border p-4 ${item.is_active?'border-gray-200':'border-gray-100 bg-gray-50 opacity-60'}`}><div><p className="font-black text-gray-900">{item.name}</p><p className="text-xs text-gray-500">{item.category} · {item.price.toLocaleString()}{unit}</p></div><div className="flex gap-2"><button onClick={()=>toggle(item)} className={`rounded-lg px-3 py-2 text-xs font-black ${item.is_active?'bg-emerald-50 text-emerald-700':'bg-gray-200 text-gray-600'}`}>{item.is_active?'판매 중':'숨김'}</button><button onClick={()=>remove(item)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-600">삭제</button></div></div>)}{!items.length&&<p className="py-8 text-center text-gray-400">등록된 품목이 없습니다.</p>}</div></section>
         {message&&<MessageModal isOpen type={message.type} message={message.text} onClose={()=>setMessage(null)}/>} 
     </div>;

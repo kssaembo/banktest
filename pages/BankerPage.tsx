@@ -4,7 +4,8 @@ import { api } from '../services/api';
 import { Account, StockProduct, StockProductWithDetails, User, Role, SavingsProduct, StockHistory } from '../types';
 import { LogoutIcon, StockIcon, XIcon, PlusIcon, CheckIcon, ErrorIcon, TransferIcon, NewPiggyBankIcon, ArrowDownIcon, ArrowUpIcon } from '../components/icons';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { FeatureGuide, MiniBars, OverviewCards } from '../components/FeatureGuide';
+import { FeatureGuide, OverviewCards } from '../components/FeatureGuide';
+import { ChartModal, DonutCard, VerticalBars } from '../components/VisualAnalytics';
 
 type View = 'deposit_withdraw' | 'stock_exchange' | 'savings_management';
 
@@ -64,7 +65,6 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
                 </header>
 
                 <main className="flex-grow overflow-y-auto p-4 bg-[#D1D3D8]">
-                    <div className="mb-4 flex justify-end"><FeatureGuide title="은행원 모드 사용 안내" items={view === 'deposit_withdraw' ? [{title:'학생을 선택해요',description:'학생을 선택하면 현재 잔액과 입출금 화면이 열립니다.'},{title:'입금·출금을 처리해요',description:'실제 교실에서 받은 현금과 일치하는지 확인하고 처리합니다.'},{title:'결과를 확인해요',description:'완료 메시지와 변경된 잔액을 확인합니다.'}] : view === 'stock_exchange' ? [{title:'종목을 관리해요',description:'학급 주식 종목과 현재 가격을 설정합니다.'},{title:'변동을 확인해요',description:'가격 그래프와 보유 학생을 확인합니다.'},{title:'변경을 기록해요',description:'가격 변경은 학생의 평가 자산에 바로 반영됩니다.'}] : [{title:'상품을 만들어요',description:'만기, 이자율과 가입 한도를 정해 예금 상품을 등록합니다.'},{title:'가입 현황을 봐요',description:'상단 차트와 상품을 눌러 가입 학생과 예치액을 확인합니다.'},{title:'상품을 정리해요',description:'가입자가 있는 상품은 삭제 전 영향을 확인합니다.'}]} /></div>
                     {renderView()}
                 </main>
 
@@ -87,12 +87,16 @@ const DepositWithdrawView: React.FC = () => {
     const [selectedStudent, setSelectedStudent] = useState<(User & { account: Account | null}) | null>(null);
     const [mode, setMode] = useState<'deposit' | 'withdraw' | null>(null);
     const [showDailyModal, setShowDailyModal] = useState(false);
+    const [assetDetails,setAssetDetails]=useState<Record<string,{cash:number;savings:number;stocks:number}>>({});
+    const [assetStudent,setAssetStudent]=useState<(User & {account:Account|null})|null>(null);
 
     const fetchStudents = useCallback(async () => {
         const users = await api.getUsersByRole(Role.STUDENT, currentUser?.userId || '');
         const usersWithAccounts = await Promise.all(users.map(async u => ({...u, account: await api.getStudentAccountByUserId(u.userId) })));
         usersWithAccounts.sort((a,b) => (a.number || 0) - (b.number || 0));
         setStudents(usersWithAccounts);
+        const details=await Promise.all(usersWithAccounts.map(async user=>{const [savings,stocks]=await Promise.all([api.getStudentSavings(user.userId),api.getStudentStocks(user.userId)]);return [user.userId,{cash:user.account?.balance||0,savings:savings.reduce((sum,item)=>sum+Number(item.amount||0),0),stocks:stocks.reduce((sum,item)=>sum+Number(item.quantity||0)*Number(item.stock?.currentPrice||0),0)}] as const;}));
+        setAssetDetails(Object.fromEntries(details));
     }, [currentUser?.userId]);
 
     useEffect(() => {
@@ -108,13 +112,13 @@ const DepositWithdrawView: React.FC = () => {
     return (
          <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center bg-gray-50/50">
-                <h2 className="text-lg font-bold text-gray-800">학생 목록</h2>
-                <button 
+                <div className="flex flex-wrap items-center gap-3"><h2 className="text-lg font-bold text-gray-800">입·출금 학생 목록</h2><FeatureGuide title="입·출금 사용 안내" label="입·출금 사용 안내" items={[{title:'학생을 선택해요',description:'현재 잔액을 확인하고 입금 또는 출금을 선택합니다.'},{title:'처리 결과를 확인해요',description:'실제 받은 금액과 화면의 금액이 같은지 확인합니다.'}]}/></div>
+                <div className="flex gap-2"><button onClick={()=>{const rows=[['번호','이름','계좌번호','현재 자산'],...students.map(s=>[s.number,s.name,s.account?.accountId,assetDetails[s.userId]?.cash||0])];const blob=new Blob(['\uFEFF'+rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`classbank-banker-assets-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(a.href);}} className="px-3 py-1.5 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-lg">CSV 다운로드</button><button 
                     onClick={() => setShowDailyModal(true)}
                     className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-sm font-bold rounded-lg hover:bg-indigo-200 transition-colors flex items-center gap-1"
                 >
                     오늘의 시재
-                </button>
+                </button></div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -145,12 +149,14 @@ const DepositWithdrawView: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+            <div className="border-t bg-slate-50 p-5"><h3 className="mb-4 font-black text-slate-800">학생별 자산 구성</h3><div className="overflow-x-auto"><div className="flex min-w-max items-end gap-5 pb-3">{students.map(student=>{const d=assetDetails[student.userId]||{cash:0,savings:0,stocks:0};const max=Math.max(1,...(Object.values(assetDetails) as {cash:number;savings:number;stocks:number}[]).map(x=>x.cash+x.savings+x.stocks));return <button key={student.userId} onClick={()=>setAssetStudent(student)} className="group w-24"><div className="flex h-44 items-end justify-center gap-1 rounded-2xl bg-white p-2 shadow-sm"><i className="w-5 rounded-t bg-blue-700" style={{height:`${Math.max(4,(d.cash+d.savings+d.stocks)/max*100)}%`}} title="전체 자산"/><i className="w-5 rounded-t bg-emerald-500" style={{height:`${Math.max(4,d.cash/max*100)}%`}} title="현금"/><i className="w-5 rounded-t bg-amber-400" style={{height:`${Math.max(4,(d.savings+d.stocks)/max*100)}%`}} title="예금/주식"/></div><span className="mt-2 block truncate text-xs font-black text-slate-600 group-hover:text-blue-600">{student.name}</span></button>})}</div></div><p className="mt-2 text-[11px] font-bold text-slate-500">■ 전체 자산　<span className="text-emerald-600">■ 현금</span>　<span className="text-amber-500">■ 예금/주식</span></p></div>
             {selectedStudent && mode && (
                 <TransactionModal student={selectedStudent} mode={mode} onClose={() => { setSelectedStudent(null); setMode(null); }} onComplete={handleTxnComplete} unit={unit} />
             )}
             {showDailyModal && (
                 <DailyCashModal onClose={() => setShowDailyModal(false)} unit={unit} />
             )}
+            {assetStudent&&<ChartModal title={`${assetStudent.name} 학생 자산 현황`} onClose={()=>setAssetStudent(null)}><DonutCard title="현재 자산 구성" centerLabel={unit} data={[{name:'현금',value:assetDetails[assetStudent.userId]?.cash||0},{name:'예금',value:assetDetails[assetStudent.userId]?.savings||0},{name:'주식',value:assetDetails[assetStudent.userId]?.stocks||0}]}/></ChartModal>}
         </div>
     )
 };
@@ -279,6 +285,7 @@ const StockExchangeView: React.FC = () => {
     const [expandedStockId, setExpandedStockId] = useState<string | null>(null);
     const [chartData, setChartData] = useState<StockHistory[]>([]);
     const [chartLoading, setChartLoading] = useState(false);
+    const [stockHolders,setStockHolders]=useState<Record<string,{studentName:string;quantity:number}[]>>({});
 
     const fetchStocks = useCallback(async () => {
         setLoading(true);
@@ -286,6 +293,7 @@ const StockExchangeView: React.FC = () => {
             const teacherId = currentUser?.role === Role.TEACHER ? currentUser.userId : currentUser?.teacher_id;
             const data = await api.getStockProducts(teacherId || '');
             setStocks(data);
+            const entries=await Promise.all(data.map(async stock=>[stock.id,await api.getStockHolders(stock.id)] as const));setStockHolders(Object.fromEntries(entries));
         } catch (error) {
             console.error("Failed to fetch stocks", error);
         } finally {
@@ -330,7 +338,7 @@ const StockExchangeView: React.FC = () => {
 
     return (
         <div>
-            <div className="flex justify-end items-center mb-4 gap-2">
+            <div className="flex flex-wrap justify-between items-center mb-4 gap-2"><div className="flex items-center gap-3"><h2 className="text-2xl font-black text-slate-800">주식거래소</h2><FeatureGuide title="주식거래소 사용 안내" label="주식거래소 사용 안내" items={[{title:'종목을 관리해요',description:'종목을 만들고 현재 가격을 변경합니다.'},{title:'투자 현황을 봐요',description:'그래프를 눌러 주주 명부를 확인합니다.'}]}/></div><div className="flex flex-wrap gap-2">
                 <button onClick={() => setShowModal('volatility')} className="px-3 py-2 bg-blue-500 text-white text-xs font-semibold rounded-lg shadow hover:bg-blue-600">민감도 조정</button>
                 <button onClick={() => setShowModal('add')} className="px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg shadow hover:bg-green-700">종목 추가</button>
                 <button onClick={() => {
@@ -343,8 +351,9 @@ const StockExchangeView: React.FC = () => {
                 }} className="px-3 py-2 bg-red-600 text-white text-xs font-semibold rounded-lg shadow hover:bg-red-700">
                     {deleteMode ? `선택 항목 삭제 (${stocksToDelete.length})` : '종목 삭제'}
                 </button>
-                 {deleteMode && <button onClick={() => { setDeleteMode(false); setStocksToDelete([]); }} className="text-xs text-gray-600">취소</button>}
+                 {deleteMode && <button onClick={() => { setDeleteMode(false); setStocksToDelete([]); }} className="text-xs text-gray-600">취소</button>}</div>
             </div>
+            <div className="mb-5 grid gap-4 lg:grid-cols-2"><VerticalBars title="종목별 총 가입 금액" unit={unit} data={stocks.map(s=>({name:s.name,value:Number(s.valuation||0),details:(stockHolders[s.id]||[]).map(h=>h.studentName)}))} onSelect={item=>{const stock=stocks.find(s=>s.name===item.name);if(stock)handleOpenHoldersModal(stock);}}/><DonutCard title="전체 주식 투자 비율" centerLabel={unit} data={stocks.map(s=>({name:s.name,value:Number(s.valuation||0),details:(stockHolders[s.id]||[]).map(h=>h.studentName)}))} onSelect={item=>{const stock=stocks.find(s=>s.name===item.name);if(stock)handleOpenHoldersModal(stock);}}/></div>
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
                  <table className="w-full text-sm">
                     <thead className="bg-gray-50">
@@ -628,6 +637,7 @@ const SavingsManagementView: React.FC = () => {
     const [deleteMode, setDeleteMode] = useState(false);
     const [productsToDelete, setProductsToDelete] = useState<string[]>([]);
     const [enrolleeStats, setEnrolleeStats] = useState<Record<string,{count:number;amount:number}>>({});
+    const [enrolleeRows,setEnrolleeRows]=useState<Record<string,{studentName:string;amount:number;maturityDate:string}[]>>({});
     
     const fetchProducts = useCallback(async () => {
         setLoading(true);
@@ -649,8 +659,8 @@ const SavingsManagementView: React.FC = () => {
     useEffect(() => {
         Promise.all(products.map(async product => {
             const rows = await api.getSavingsEnrollees(product.id);
-            return [product.id, { count: rows.length, amount: rows.reduce((sum,row)=>sum+Number(row.amount||0),0) }] as const;
-        })).then(rows => setEnrolleeStats(Object.fromEntries(rows))).catch(error => console.error('Failed to load savings overview', error));
+            return [product.id, rows] as const;
+        })).then(entries => {setEnrolleeRows(Object.fromEntries(entries));setEnrolleeStats(Object.fromEntries(entries.map(([id,rows])=>[id,{count:rows.length,amount:rows.reduce((sum,row)=>sum+Number(row.amount||0),0)}])));}).catch(error => console.error('Failed to load savings overview', error));
     }, [products]);
 
     const handleSelectForDelete = (productId: string) => {
@@ -668,7 +678,9 @@ const SavingsManagementView: React.FC = () => {
 
     return (
         <div>
-            <div className="mb-4 space-y-3"><OverviewCards items={[{label:'예금 상품',value:`${products.length}개`},{label:'가입 건수',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.count,0)}건`,color:'text-blue-600'},{label:'총 예치액',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.amount,0).toLocaleString()}${unit}`,color:'text-emerald-600'},{label:'평균 만기',value:`${Math.round(products.reduce((s,p)=>s+p.maturityDays,0)/Math.max(1,products.length))}일`}]} /><MiniBars title="상품별 가입 학생" rows={products.map(p=>({label:p.name,value:enrolleeStats[p.id]?.count||0,display:`${enrolleeStats[p.id]?.count||0}명 · ${(enrolleeStats[p.id]?.amount||0).toLocaleString()}${unit}`}))} color="bg-emerald-500" /></div>
+            <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-black text-slate-800">예금 관리</h2><FeatureGuide title="예금 관리 사용 안내" label="예금 관리 사용 안내" items={[{title:'상품을 만들어요',description:'만기와 이율, 가입 한도를 정합니다.'},{title:'가입 현황을 봐요',description:'그래프를 눌러 상품별 가입자를 확인합니다.'}]}/></div>
+            <div className="mb-4"><OverviewCards items={[{label:'예금 상품',value:`${products.length}개`},{label:'가입 건수',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.count,0)}건`,color:'text-blue-600'},{label:'총 예치액',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.amount,0).toLocaleString()}${unit}`,color:'text-emerald-600'},{label:'평균 만기',value:`${Math.round(products.reduce((s,p)=>s+p.maturityDays,0)/Math.max(1,products.length))}일`}]} /></div>
+            <div className="mb-5 grid gap-4 lg:grid-cols-2"><VerticalBars title="상품별 가입 금액" unit={unit} data={products.map(p=>({name:p.name,value:enrolleeStats[p.id]?.amount||0,details:(enrolleeRows[p.id]||[]).map(r=>r.studentName)}))} onSelect={item=>{const p=products.find(product=>product.name===item.name);if(p)handleOpenEnrolleesModal(p);}}/><DonutCard title="전체 예금 가입액 비율" centerLabel={unit} data={products.map(p=>({name:p.name,value:enrolleeStats[p.id]?.amount||0,details:(enrolleeRows[p.id]||[]).map(r=>r.studentName)}))} onSelect={item=>{const p=products.find(product=>product.name===item.name);if(p)handleOpenEnrolleesModal(p);}}/></div>
             <div className="flex justify-end items-center mb-4 gap-2">
                 <button onClick={() => setShowModal('add')} className="px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg shadow hover:bg-green-700">예금 추가</button>
                 <button onClick={() => {

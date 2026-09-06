@@ -115,9 +115,11 @@ serve(async (req) => {
     })
   } catch (error: any) {
     console.error("Gemini Handler Error:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const raw=String(error?.message||error);
+    const depleted=raw.includes('prepayment credits are depleted')||raw.includes('RESOURCE_EXHAUSTED')||raw.includes('429');
+    return new Response(JSON.stringify({ error: depleted ? 'Gemini 사용 크레딧이 소진되었습니다. Google AI Studio 결제에서 크레딧을 충전해주세요.' : raw }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500
+      status: depleted ? 429 : 500
     })
   }
 })

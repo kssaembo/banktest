@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 export type GuideItem = { title: string; description: string };
 
-export const FeatureGuide: React.FC<{ title: string; items: GuideItem[]; className?: string }> = ({ title, items, className = '' }) => {
+export const FeatureGuide: React.FC<{ title: string; items: GuideItem[]; className?: string; label?: string }> = ({ title, items, className = '', label }) => {
   const [open, setOpen] = useState(false);
   return <>
     <button
@@ -12,7 +12,7 @@ export const FeatureGuide: React.FC<{ title: string; items: GuideItem[]; classNa
       aria-label={`${title} 사용 안내 열기`}
     >
       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs text-white">?</span>
-      사용 안내
+      {label || title}
     </button>
     {open && <div className="fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/55 p-4" onClick={() => setOpen(false)}>
       <section className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="feature-guide-title">
@@ -31,6 +31,8 @@ export const FeatureGuide: React.FC<{ title: string; items: GuideItem[]; classNa
     </div>}
   </>;
 };
+
+export const SectionTitle: React.FC<{ title: string; guide?: GuideItem[]; actions?: React.ReactNode }> = ({ title, guide, actions }) => <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-black text-slate-800">{title}</h2>{guide?.length ? <FeatureGuide title={`${title} 사용 안내`} label={`${title} 사용 안내`} items={guide}/> : null}</div>{actions}</div>;
 
 export const OverviewCards: React.FC<{ items: { label: string; value: string; note?: string; color?: string }[] }> = ({ items }) => (
   <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

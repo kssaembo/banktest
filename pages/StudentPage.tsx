@@ -17,6 +17,7 @@ import { EconomyTypingModal } from '../components/EconomyTypingModal';
 import { EconomyTutorialLauncher } from '../components/EconomyTutorialModal';
 import { EconomyNewsModal } from '../components/EconomyNewsModal';
 import { FeatureGuide } from '../components/FeatureGuide';
+import { ChartModal, DonutCard, TrendChart } from '../components/VisualAnalytics';
 
 type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds';
 type NotificationType = { type: 'success' | 'error', text: string };
@@ -100,6 +101,7 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
     const [unpaidTaxes, setUnpaidTaxes] = useState<any[]>([]);
     const [taxToPay, setTaxToPay] = useState<{taxId: string, amount: number, name: string} | null>(null);
     const [visibleCount, setVisibleCount] = useState(5);
+    const [assetModal,setAssetModal]=useState(false);
 
     useEffect(() => {
         api.getTransactionsByAccountId(account.accountId).then(setTransactions);
@@ -111,6 +113,11 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
     const stockValue = myStocks.reduce((sum, item) => sum + (item.quantity * (item.stock?.currentPrice || 0)), 0);
     const savingsValue = mySavings.reduce((sum, item) => sum + item.amount, 0);
     const totalAssets = account.balance + stockValue + savingsValue;
+    const assetTrend = useMemo(()=>{
+        let cash=account.balance,savings=savingsValue,stocks=stockValue;
+        const points=[{label:'현재',cash:Math.round(cash),savings:Math.round(savings),stocks:Math.round(stocks)}];
+        [...transactions].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).forEach(t=>{const amount=Math.abs(Number(t.amount||0)),type=String(t.type);const income=['Deposit','Salary','StockSell','SavingsMaturity','FundSettle','FundPayout'].includes(type);cash-=income?amount:-amount;if(type==='SavingsJoin')savings=Math.max(0,savings-amount);if(type==='SavingsCancel'||type==='SavingsMaturity')savings+=amount;if(type==='StockBuy')stocks=Math.max(0,stocks-amount);if(type==='StockSell')stocks+=amount;points.push({label:new Date(t.date).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}),cash:Math.round(cash),savings:Math.round(savings),stocks:Math.round(stocks)});});return points.reverse().slice(-12);
+    },[transactions,account.balance,savingsValue,stockValue]);
 
     const sortedTransactions = useMemo(() => {
         return [...transactions].sort((a, b) => {
@@ -167,27 +174,7 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
 
     return (
         <div className="space-y-6">
-            <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100">
-                <p className="text-gray-800 mb-2 font-black text-sm">내 총 자산</p>
-                <h2 className="text-4xl font-black text-gray-900 tracking-tight">
-                    {totalAssets.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}<span className="text-2xl ml-1 font-black text-gray-800">{unit}</span>
-                </h2>
-                
-                <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-gray-100">
-                    <div className="text-center">
-                        <div className="text-xs text-gray-800 font-black mb-1">현금</div>
-                        <div className="font-black text-gray-900 text-lg">{account.balance.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
-                    </div>
-                    <div className="text-center border-l border-gray-100">
-                        <div className="text-xs text-gray-800 font-black mb-1">주식</div>
-                        <div className="font-black text-blue-700 text-lg">{stockValue.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
-                    </div>
-                     <div className="text-center border-l border-gray-100">
-                        <div className="text-xs text-gray-800 font-black mb-1">예금</div>
-                        <div className="font-black text-green-700 text-lg">{savingsValue.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
-                    </div>
-                </div>
-            </div>
+            <div role="button" tabIndex={0} onClick={()=>setAssetModal(true)} className="relative grid w-full cursor-pointer overflow-hidden rounded-[32px] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-7 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg md:grid-cols-[1fr_280px] md:items-center"><img src="/design/hero-wallet.png" alt="" className="pointer-events-none absolute -bottom-4 left-48 hidden h-40 opacity-90 md:block"/><div className="relative z-10"><p className="mb-2 text-sm font-black text-gray-800">내 총 자산</p><h2 className="text-4xl font-black tracking-tight text-gray-900">{totalAssets.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}<span className="ml-1 text-2xl">{unit}</span></h2><p className="mt-3 text-xs font-bold text-blue-600">자산 그래프 자세히 보기 ↗</p></div><DonutCard title="내 자산 구성" centerLabel={unit} data={[{name:'현금',value:account.balance},{name:'주식',value:stockValue},{name:'예금',value:savingsValue}]}/></div>
 
             {unpaidTaxes.length > 0 && (
                 <div className="bg-red-50 p-6 rounded-3xl border border-red-100">
@@ -254,6 +241,7 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
                 onCancel={() => setTaxToPay(null)}
                 confirmText="납부하기"
             />
+            {assetModal&&<ChartModal title="내 자산 상세 현황" onClose={()=>setAssetModal(false)}><div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]"><section className="rounded-3xl bg-slate-50 p-4"><h3 className="font-black text-slate-800">자산 변화 경향</h3><TrendChart data={assetTrend} lines={[{key:'cash',name:'현금',color:'#2563eb'},{key:'stocks',name:'주식',color:'#f59e0b'},{key:'savings',name:'예금',color:'#10b981'}]}/></section><DonutCard title="현재 구성 비율" centerLabel={unit} data={[{name:'현금',value:account.balance},{name:'주식',value:stockValue},{name:'예금',value:savingsValue}]}/></div><div className="mt-5 grid grid-cols-3 gap-3">{[{n:'현금',v:account.balance,img:'/design/asset-cash.png'},{n:'주식',v:stockValue,img:'/design/asset-stock.png'},{n:'예금',v:savingsValue,img:'/design/asset-savings.png'}].map(item=><div key={item.n} className="rounded-2xl bg-blue-50 p-4 text-center"><img src={item.img} alt="" className="mx-auto h-12 w-12 object-contain"/><p className="text-xs font-bold text-slate-500">{item.n}</p><p className="mt-1 font-black text-slate-900">{item.v.toLocaleString()}{unit}</p></div>)}</div></ChartModal>}
         </div>
     );
 };
@@ -325,7 +313,6 @@ const TransferView: React.FC<{ currentUser: User, account: Account, refreshAccou
 
     return (
         <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 max-w-md mx-auto">
-            <h2 className="text-2xl font-black mb-8 text-gray-900 tracking-tight">송금하기</h2>
             
             <div className="flex bg-gray-100 p-1.5 rounded-2xl mb-8">
                 <button onClick={() => setTargetType('mart')} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${targetType === 'mart' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-800'}`}>마트</button>
@@ -1566,7 +1553,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     useEffect(() => {
         if (currentUser?.role === Role.TEACHER && !activeStudent) {
-            api.getUsersByRole(Role.STUDENT, currentUser.userId).then(setStudents);
+            api.getUsersByRole(Role.STUDENT, currentUser.userId).then(rows=>{setStudents(rows);const saved=localStorage.getItem(`class_bank_active_student_${currentUser.userId}`);const student=rows.find(row=>row.userId===saved);if(student)setActiveStudent(student);});
         }
     }, [currentUser, activeStudent]);
 
@@ -1581,7 +1568,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     const renderView = () => {
         if (currentUser.role === Role.TEACHER && !activeStudent) {
-            return <StudentSelectionView students={students} onSelect={setActiveStudent} />;
+            return <StudentSelectionView students={students} onSelect={student=>{setActiveStudent(student);localStorage.setItem(`class_bank_active_student_${currentUser.userId}`,student.userId);}} />;
         }
 
         if (isLoading) return (
@@ -1668,7 +1655,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 <header className="md:hidden bg-white/80 backdrop-blur-xl px-6 py-4 flex justify-between items-center border-b border-gray-100 sticky top-0 z-40">
                     <div className="flex items-center">
                         {currentUser.role === Role.TEACHER && activeStudent && (
-                            <button onClick={() => { setActiveStudent(null); setAccount(null); }} className="mr-4 p-2 -ml-2 hover:bg-gray-100 rounded-2xl transition-all"><BackIcon className="w-6 h-6 text-gray-800" /></button>
+                            <button onClick={() => { setActiveStudent(null); setAccount(null); localStorage.removeItem(`class_bank_active_student_${currentUser.userId}`); }} className="mr-4 p-2 -ml-2 hover:bg-gray-100 rounded-2xl transition-all"><BackIcon className="w-6 h-6 text-gray-800" /></button>
                         )}
                         <div>
                             <h1 className="text-lg font-black text-gray-900 leading-tight tracking-tight">
@@ -1696,7 +1683,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
                 <main className="flex-grow overflow-y-auto p-4 md:p-10 pb-28 md:pb-10">
                     <div className="max-w-4xl mx-auto">
-                        {(activeStudent || currentUser.role === Role.STUDENT) && <div className="mb-3 flex justify-end"><FeatureGuide title={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} items={view === 'home' ? [{title:'자산을 확인해요',description:'현금과 투자·예금 현황을 한눈에 확인합니다.'},{title:'최근 활동을 봐요',description:'최근 거래 금액과 내용을 확인합니다.'}] : view === 'transfer' ? [{title:'받는 친구를 확인해요',description:'친구의 계좌번호를 정확히 입력합니다.'},{title:'금액을 확인해요',description:'송금 전 받는 사람과 금액을 다시 확인합니다.'}] : view === 'stocks' ? [{title:'종목을 살펴봐요',description:'현재 가격과 변화를 확인합니다.'},{title:'수량을 정해요',description:'내 잔액과 보유 수량을 확인한 뒤 거래합니다.'}] : view === 'savings' ? [{title:'상품을 비교해요',description:'만기, 이자율과 최대 가입 금액을 비교합니다.'},{title:'가입 후 확인해요',description:'내 예금에서 원금과 만기일을 확인합니다.'}] : [{title:'목표를 읽어요',description:'펀드의 목표와 모집·만기 일정을 확인합니다.'},{title:'위험과 보상을 확인해요',description:'성공과 실패 조건을 읽고 투자 수량을 결정합니다.'}]} /></div>}
+                        {(activeStudent || currentUser.role === Role.STUDENT) && <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-black text-slate-800">{view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'}</h2><FeatureGuide title={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} label={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} items={view === 'home' ? [{title:'자산을 확인해요',description:'현금과 투자·예금 현황을 한눈에 확인합니다.'},{title:'최근 활동을 봐요',description:'최근 거래 금액과 내용을 확인합니다.'}] : view === 'transfer' ? [{title:'받는 친구를 확인해요',description:'친구의 계좌번호를 정확히 입력합니다.'},{title:'금액을 확인해요',description:'송금 전 받는 사람과 금액을 다시 확인합니다.'}] : view === 'stocks' ? [{title:'종목을 살펴봐요',description:'현재 가격과 변화를 확인합니다.'},{title:'수량을 정해요',description:'내 잔액과 보유 수량을 확인한 뒤 거래합니다.'}] : view === 'savings' ? [{title:'상품을 비교해요',description:'만기, 이자율과 최대 가입 금액을 비교합니다.'},{title:'가입 후 확인해요',description:'내 예금에서 원금과 만기일을 확인합니다.'}] : [{title:'목표를 읽어요',description:'펀드의 목표와 모집·만기 일정을 확인합니다.'},{title:'위험과 보상을 확인해요',description:'성공과 실패 조건을 읽고 투자 수량을 결정합니다.'}]} /></div>}
                         <div className="md:hidden flex justify-end mb-2">
                             <EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name} isMobile />
                         </div>

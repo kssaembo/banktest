@@ -2,7 +2,8 @@
 import { api } from '../services/api';
 import React, { useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { FeatureGuide, MiniBars, OverviewCards } from '../components/FeatureGuide';
+import { FeatureGuide, OverviewCards } from '../components/FeatureGuide';
+import { ChartModal, DonutCard, SegmentedBar, TrendChart } from '../components/VisualAnalytics';
 
 const downloadFile = (name: string, content: string, type: string) => {
     const url = URL.createObjectURL(new Blob([content], { type }));
@@ -27,6 +28,16 @@ const getDDay = (targetDateStr: string) => {
     today.setHours(0,0,0,0);
     const diff = target.getTime() - today.getTime();
     return Math.floor(diff / (1000 * 60 * 60 * 24));
+};
+
+const creditTypes = new Set(['Deposit','Salary','StockSell','SavingsMaturity','FundPayout','FundSettle']);
+const signedTransaction = (transaction: any) => creditTypes.has(transaction.type) ? Math.abs(Number(transaction.amount || 0)) : -Math.abs(Number(transaction.amount || 0));
+const makeBalanceTrend = (transactions: any[], currentBalance: number) => {
+    const newest=[...transactions].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime());
+    let balance=currentBalance;
+    const points=[{label:'현재',value:Math.round(balance)}];
+    newest.forEach(transaction=>{ balance-=signedTransaction(transaction); points.push({label:new Date(transaction.date).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}),value:Math.round(balance)}); });
+    return points.reverse().slice(-12);
 };
 
 interface AlarmItem {
@@ -75,7 +86,7 @@ const MessageModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm flex flex-col items-center text-center">
-                {type === 'success' ? <CheckIcon className="w-12 h-12 text-green-500 mb-4" /> : <ErrorIcon className="w-12 h-12 text-red-500 mb-4" />}
+                {type === 'success' ? <img src="/design/success-coin.png" alt="" className="mb-2 h-20 w-20 object-contain" /> : <ErrorIcon className="w-12 h-12 text-red-500 mb-4" />}
                 <h3 className={`text-xl font-bold mb-2 ${type === 'success' ? 'text-gray-900' : 'text-red-600'}`}>
                     {type === 'success' ? '성공' : '오류'}
                 </h3>
@@ -703,6 +714,7 @@ const FundInvestorsModal: React.FC<{ fund: Fund, students?: User[], onClose: () 
 
     const creator = students?.find(s => s.userId === fund.creatorId);
     const applicantName = fund.creatorName || creator?.name || fund.creatorId?.slice(0, 8) || '미지정';
+    const sortedInvestors = [...investors].sort((a,b)=>Number(b.invested_amount)-Number(a.invested_amount));
 
     useEffect(() => {
         api.getFundInvestors(fund.id).then(setInvestors).finally(() => setLoading(false));
@@ -721,7 +733,7 @@ const FundInvestorsModal: React.FC<{ fund: Fund, students?: User[], onClose: () 
                     {loading ? (
                         <div className="p-10 text-center text-gray-400 text-sm">조회 중...</div>
                     ) : investors.length > 0 ? (
-                        <table className="w-full text-sm">
+                        <><SegmentedBar title="투자자별 투자 비율" unit={unit} rows={sortedInvestors.map(inv=>({name:inv.student_name,value:Number(inv.invested_amount)}))}/><table className="mt-4 w-full text-sm">
                             <thead className="bg-gray-50 sticky top-0">
                                 <tr>
                                     <th className="p-2 text-left">이름</th>
@@ -730,7 +742,7 @@ const FundInvestorsModal: React.FC<{ fund: Fund, students?: User[], onClose: () 
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {investors.map((inv, i) => (
+                                {sortedInvestors.map((inv, i) => (
                                     <tr key={i} className="hover:bg-gray-50">
                                         <td className="p-2 font-medium">{inv.student_name}</td>
                                         <td className="p-2 text-right">{inv.units}좌</td>
@@ -738,7 +750,7 @@ const FundInvestorsModal: React.FC<{ fund: Fund, students?: User[], onClose: () 
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                        </table></>
                     ) : (
                         <div className="p-10 text-center text-gray-400 font-medium">아직 가입한 학생이 없습니다.</div>
                     )}
@@ -853,6 +865,11 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
     const [isAlarmsLoading, setIsAlarmsLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [exportMessage, setExportMessage] = useState<string | null>(null);
+    const [studentTransactions, setStudentTransactions] = useState<Record<string, Transaction[]>>({});
+    const [trendMetric, setTrendMetric] = useState<'total'|'average'|null>(null);
+    const [trendStudent, setTrendStudent] = useState<(User & { account: Account | null }) | null>(null);
+    const [csvDialog, setCsvDialog] = useState(false);
+    const [csvRange, setCsvRange] = useState({start:'',end:new Date().toISOString().slice(0,10)});
 
     const alias = currentUser?.teacherAlias || '교사';
     const unit = currentUser?.currencyUnit || '권';
@@ -879,6 +896,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
         const fetchData = async () => {
             setIsAlarmsLoading(true);
             const activityMap: Record<string, number> = {};
+            const transactionMap: Record<string, Transaction[]> = {};
             const newAlarms: AlarmItem[] = [];
             const todayStr = new Date().toLocaleDateString();
 
@@ -919,6 +937,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                 await Promise.all(students.map(async (s) => {
                     if (s.account) {
                         const txns = await api.getTransactionsByAccountId(s.account.accountId);
+                        transactionMap[s.userId] = txns;
                         activityMap[s.userId] = txns.length;
 
                         txns.forEach(t => {
@@ -941,6 +960,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                 }));
 
                 setStudentActivities(activityMap);
+                setStudentTransactions(transactionMap);
                 setAlarms(newAlarms.sort((a,b) => b.date.getTime() - a.date.getTime()));
             } catch (err) {
                 console.error("Failed to gather activity data", err);
@@ -953,12 +973,18 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
 
     const totalAssets = students.reduce((acc, s) => acc + (s.account?.balance || 0), 0);
     const avgAssets = students.length > 0 ? Math.round(totalAssets / students.length) : 0;
-    const assetRows = [...students].sort((a,b)=>(b.account?.balance||0)-(a.account?.balance||0)).map(s => ({ label: `${s.number || '-'}번 ${s.name}`, value: s.account?.balance || 0, display: `${(s.account?.balance || 0).toLocaleString()}${unit}` }));
-
-    const exportCsv = () => {
-        const rows = [['번호','이름','학년','반','계좌번호','현재 잔액'], ...students.map(s => [s.number,s.name,s.grade,s.class,s.account?.accountId,s.account?.balance ?? 0])];
-        downloadFile(`classbank-students-${new Date().toISOString().slice(0,10)}.csv`, '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\n'), 'text/csv;charset=utf-8');
-        setExportMessage('학생·잔액 CSV를 저장했습니다.');
+    const classTrend = useMemo(()=>makeBalanceTrend(Object.values(studentTransactions).flat(),totalAssets).map(point=>({label:point.label,total:point.value,average:Math.round(point.value/Math.max(1,students.length))})),[studentTransactions,totalAssets,students.length]);
+    const selectedTrend = useMemo(()=>trendStudent ? makeBalanceTrend(studentTransactions[trendStudent.userId]||[],trendStudent.account?.balance||0).map((point,index)=>({label:point.label,assets:point.value,activity:index+1})) : [],[trendStudent,studentTransactions]);
+    const exportCsv = async () => {
+        if(!currentUser)return; setExporting(true);
+        try{
+            const teacherId=currentUser.userId;
+            const [jobs,taxes,funds,donations,savings,stocks] = await Promise.all([api.getJobs(teacherId),api.getTaxes(teacherId),api.getFunds(teacherId),api.getDonations(teacherId),api.getSavingsProducts(teacherId),api.getStockProducts(teacherId)]);
+            const start=csvRange.start?new Date(`${csvRange.start}T00:00:00`).getTime():-Infinity,end=csvRange.end?new Date(`${csvRange.end}T23:59:59`).getTime():Infinity;
+            const transactions=(Object.entries(studentTransactions) as [string,Transaction[]][]).flatMap(([userId,items])=>items.map(item=>({userId,...item}))).filter(item=>{const time=new Date(item.date).getTime();return time>=start&&time<=end;});
+            const rows:any[][]=[['[학생 자산 현황]'],['번호','이름','학년','반','계좌번호','현재 잔액'],...students.map(s=>[s.number,s.name,s.grade,s.class,s.account?.accountId,s.account?.balance??0]),[],['[기간 내 전체 거래 기록]'],['일시','학생','거래 종류','금액','설명'],...transactions.map(t=>[t.date,students.find(s=>s.userId===t.userId)?.name||t.userId,t.type,t.amount,t.description]),[],['[직업]'],['직업명','급여','인센티브','배정 학생'],...jobs.map(j=>[j.jobName,j.salary,j.incentive,j.assigned_students.map(s=>s.name).join(' / ')]),[],['[세금]'],['세금명','금액','마감일','납부','미납'],...taxes.map(t=>[t.name,t.amount,t.dueDate,t.recipients.filter(r=>r.isPaid).length,t.recipients.filter(r=>!r.isPaid).length]),[],['[펀드]'],['펀드명','상태','투자자 수','총 투자금'],...funds.map(f=>[f.name,f.status,f.investorCount||0,f.totalInvestedAmount||0]),[],['[기부]'],['기부명','상태','누적 기부액'],...donations.map(d=>[d.title,d.status,d.current_amount||0]),[],['[예금 상품]'],['상품명','만기일수','이율','최대금액'],...savings.map(s=>[s.name,s.maturityDays,s.rate,s.maxAmount]),[],['[주식 종목]'],['종목명','현재가격','발행수량','평가액'],...stocks.map(s=>[s.name,s.currentPrice,(s as any).totalQuantity||0,(s as any).valuation||0])];
+            downloadFile(`classbank-dashboard-${csvRange.start||'all'}-${csvRange.end||'today'}.csv`,'\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\n'),'text/csv;charset=utf-8'); setCsvDialog(false);setExportMessage('대시보드 전체 CSV를 저장했습니다.');
+        }catch(e:any){setExportMessage(e.message||'CSV를 만들지 못했습니다.');}finally{setExporting(false);}
     };
     const exportBackup = async () => {
         if (!currentUser) return; setExporting(true);
@@ -990,7 +1016,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
 
     return (
         <div className="space-y-6">
-             <div className="flex flex-wrap justify-end gap-2"><button onClick={exportCsv} className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-black text-emerald-700">CSV 다운로드</button><button onClick={exportBackup} disabled={exporting} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-black text-white disabled:opacity-50">{exporting?'백업 준비 중...':'전체 백업'}</button></div>
+             <div className="flex flex-wrap justify-end gap-2"><button onClick={()=>setCsvDialog(true)} className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-black text-emerald-700">CSV 다운로드</button><button onClick={exportBackup} disabled={exporting} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-black text-white disabled:opacity-50">{exporting?'백업 준비 중...':'전체 백업'}</button></div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* 선생님 지갑 박스: 가로 2배 (md:col-span-2) */}
                 <div onClick={() => { setVisibleHistoryModalTxns(10); setShowHistoryModal(true); }} className="md:col-span-2 bg-[#2B548F] text-white p-8 rounded-xl shadow-lg cursor-pointer hover:bg-[#234576] transition-colors relative overflow-hidden group min-h-[160px] flex flex-col justify-center">
@@ -1017,19 +1043,19 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                         </div>
                         <p className="text-xs text-blue-200 mt-4 flex items-center">내역 보기 <span className="ml-1">→</span></p>
                     </div>
-                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-xl group-hover:scale-110 transition-transform"></div>
+                    <img src="/design/hero-wallet.png" alt="" className="pointer-events-none absolute bottom-0 right-24 hidden h-36 object-contain opacity-90 md:block"/>
                 </div>
 
                 {/* 우측 세로 배열 박스들 */}
                 <div className="flex flex-col gap-4">
-                    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    <button onClick={()=>setTrendMetric('total')} className="group bg-white p-5 rounded-xl shadow-sm border border-indigo-100 flex justify-between items-center text-left transition hover:-translate-y-0.5 hover:shadow-md">
                         <h3 className="text-gray-500 font-bold text-sm">총 통화량</h3>
-                        <p className="text-xl font-black text-indigo-600">{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</p>
-                    </div>
-                    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                        <p className="text-xl font-black text-indigo-600">{totalAssets.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit} <span className="inline-block animate-pulse text-sm">↗</span></p>
+                    </button>
+                    <button onClick={()=>setTrendMetric('average')} className="group bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex justify-between items-center text-left transition hover:-translate-y-0.5 hover:shadow-md">
                         <h3 className="text-gray-500 font-bold text-sm">평균 자산</h3>
-                        <p className="text-xl font-black text-green-600">{avgAssets.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</p>
-                    </div>
+                        <p className="text-xl font-black text-green-600">{avgAssets.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit} <span className="inline-block animate-pulse text-sm">↗</span></p>
+                    </button>
                     <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
                         <h3 className="text-gray-500 font-bold text-sm">등록 학생</h3>
                         <p className="text-xl font-black text-gray-800">{students.length}명</p>
@@ -1037,7 +1063,6 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                 </div>
              </div>
 
-             <MiniBars title="학생별 현재 자산 현황" rows={assetRows} color="bg-indigo-500" />
              {exportMessage && <div className="rounded-xl bg-blue-50 p-3 text-center text-sm font-bold text-blue-700">{exportMessage} <button onClick={()=>setExportMessage(null)} className="ml-2 underline">닫기</button></div>}
 
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1047,7 +1072,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                     </h3>
                     <span className="text-xs text-gray-400">실시간 집계</span>
                 </div>
-                <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
+                <div className="divide-y divide-gray-50">
                     {isAlarmsLoading ? (
                         <div className="p-8 text-center text-gray-400 text-sm">데이터 분석 중...</div>
                     ) : alarms.length > 0 ? (
@@ -1095,7 +1120,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                      </div>
                      <ul className="flex-grow">
                          {sortedRankingList.slice(0, visibleRankingCount).map((s, index) => (
-                             <li key={s.userId} className="p-4 border-b last:border-b-0 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                             <li key={s.userId} onMouseEnter={()=>setTrendStudent(s)} onClick={()=>setTrendStudent(s)} className="cursor-pointer p-4 border-b last:border-b-0 flex items-center justify-between hover:bg-blue-50 transition-colors">
                                  <div className="flex items-center">
                                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mr-3 ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-800' : 'bg-gray-50 text-gray-400'}`}>
                                          {index + 1}
@@ -1124,10 +1149,11 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                  </div>
                  
                  <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 flex flex-col">
+                     {trendStudent&&<div className="border-b bg-blue-50/50 p-4"><div className="flex items-center justify-between"><h3 className="font-black text-slate-800">{trendStudent.name} 학생 {activeTab==='assets'?'자산':'활동량'} 흐름</h3><span className="text-[10px] font-bold text-blue-500">순위에서 학생을 선택</span></div><TrendChart height={170} data={selectedTrend} lines={[activeTab==='assets'?{key:'assets',name:'자산 경향',color:'#2563eb'}:{key:'activity',name:'활동량 경향',color:'#10b981'}]}/></div>}
                      <div className="p-4 border-b bg-gray-50">
                          <h3 className="font-bold text-gray-800">국고 최근 거래 내역</h3>
                      </div>
-                     <ul className="flex-grow max-h-[460px] overflow-y-auto">
+                     <ul className="flex-grow">
                          {teacherTransactions.slice(0, visibleTeacherTxns).map(t => (
                              <li key={t.transactionId} className="p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors">
                                  <div className="flex justify-between items-start mb-1">
@@ -1141,7 +1167,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                                  </div>
                              </li>
                          ))}
-                         {teacherTransactions.length === 0 && <li className="p-8 text-center text-gray-400">거래 내역이 없습니다.</li>}
+                         {teacherTransactions.length === 0 && <li className="p-8 text-center text-gray-400"><img src="/design/empty-transactions.png" alt="" className="mx-auto h-24 object-contain"/><span>거래 내역이 없습니다.</span></li>}
                      </ul>
                      {teacherTransactions.length > visibleTeacherTxns && (
                          <button 
@@ -1153,6 +1179,9 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                      )}
                  </div>
              </div>
+
+             {trendMetric&&<ChartModal title={trendMetric==='total'?'총 통화량 변화':'평균 자산 변화'} onClose={()=>setTrendMetric(null)}><p className="mb-3 text-sm text-slate-500">보유 거래 기록을 기준으로 최근 경향을 재구성했습니다.</p><TrendChart data={classTrend} lines={[trendMetric==='total'?{key:'total',name:'총 통화량',color:'#4f46e5'}:{key:'average',name:'평균 자산',color:'#059669'}]}/></ChartModal>}
+             {csvDialog&&<ChartModal title="대시보드 전체 CSV 다운로드" onClose={()=>setCsvDialog(false)}><p className="mb-5 text-sm text-slate-500">학생 자산, 거래 기록, 직업, 세금, 펀드, 기부, 예금과 주식 정보를 한 파일에 담습니다.</p><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">시작일<input type="date" value={csvRange.start} onChange={e=>setCsvRange(v=>({...v,start:e.target.value}))} className="mt-2 w-full rounded-xl border p-3"/></label><label className="text-sm font-bold text-slate-700">종료일<input type="date" value={csvRange.end} onChange={e=>setCsvRange(v=>({...v,end:e.target.value}))} className="mt-2 w-full rounded-xl border p-3"/></label></div><button onClick={exportCsv} disabled={exporting} className="mt-6 w-full rounded-2xl bg-emerald-600 py-3.5 font-black text-white">{exporting?'파일 만드는 중...':'CSV 다운로드'}</button></ChartModal>}
 
              {showHistoryModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowHistoryModal(false)}>
@@ -1280,7 +1309,7 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-800">학생 관리</h2>
+                <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">학생 관리</h2><FeatureGuide title="학생 관리 사용 안내" label="학생 관리 사용 안내" items={[{title:'학생을 등록해요',description:'학생 정보와 계좌를 만들고 QR을 발급합니다.'},{title:'정보를 관리해요',description:'학생을 선택해 수정하거나 필요한 학생만 삭제합니다.'}]}/></div>
                 <div className="flex gap-2">
                     <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576] transition-all active:scale-95">학생 추가</button>
                     <button onClick={openBulkQr} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow hover:bg-green-700 transition-all active:scale-95">QR 일괄 출력</button>
@@ -1459,7 +1488,7 @@ const JobManagementView: React.FC<{ refresh: () => void }> = ({ refresh }) => {
     return (
         <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">직업 관리</h2>
+                <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">직업 관리</h2><FeatureGuide title="직업 관리 사용 안내" label="직업 관리 사용 안내" items={[{title:'직업을 만들어요',description:'업무와 급여를 설정합니다.'},{title:'학생을 배정해요',description:'담당 학생을 정하고 급여를 지급합니다.'}]}/></div>
                 <div className="flex gap-2">
                     <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576]">
                         + 직업 추가
@@ -1469,8 +1498,8 @@ const JobManagementView: React.FC<{ refresh: () => void }> = ({ refresh }) => {
                     </button>
                 </div>
             </div>
-            <div className="mb-4 space-y-3"><OverviewCards items={[{label:'등록 직업',value:`${jobs.length}개`},{label:'배정 학생',value:`${new Set(jobs.flatMap(j=>j.assigned_students.map(s=>s.userId))).size}명`,color:'text-blue-600'},{label:'미배정 학생',value:`${Math.max(0,students.length-new Set(jobs.flatMap(j=>j.assigned_students.map(s=>s.userId))).size)}명`,color:'text-amber-600'},{label:'예상 총급여',value:`${jobs.reduce((sum,j)=>sum+(j.salary+(j.incentive||0))*j.assigned_students.length,0).toLocaleString()}${unit}`}]} /><MiniBars title="직업별 담당 학생" rows={jobs.map(j=>({label:j.jobName,value:j.assigned_students.length,display:`${j.assigned_students.length}명`}))} color="bg-blue-500" /></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
+            <div className="mb-4"><OverviewCards items={[{label:'등록 직업',value:`${jobs.length}개`},{label:'배정 학생',value:`${new Set(jobs.flatMap(j=>j.assigned_students.map(s=>s.userId))).size}명`,color:'text-blue-600'},{label:'예상 총급여',value:`${jobs.reduce((sum,j)=>sum+(j.salary+(j.incentive||0))*j.assigned_students.length,0).toLocaleString()}${unit}`},{label:'예상 총 소득세(10%)',value:`${Math.round(jobs.reduce((sum,j)=>sum+(j.salary+(j.incentive||0))*j.assigned_students.length,0)*0.1).toLocaleString()}${unit}`,color:'text-emerald-600'}]} /></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {jobs.map(job => (
                     <div key={job.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col">
                         <div className="flex justify-between items-start mb-2">
@@ -1574,13 +1603,13 @@ const TaxView: React.FC<{ students: User[] }> = ({ students }) => {
     return (
         <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">세금 관리</h2>
+                <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">세금 관리</h2><FeatureGuide title="세금 관리 사용 안내" label="세금 관리 사용 안내" items={[{title:'세금을 고지해요',description:'금액, 납부 마감일과 대상을 정합니다.'},{title:'납부 현황을 봐요',description:'원그래프에 마우스를 올려 학생 명단을 확인합니다.'}]}/></div>
                 <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576]">
                     + 세금 고지
                 </button>
             </div>
             <div className="mb-4"><OverviewCards items={[{label:'고지 건수',value:`${taxes.length}건`},{label:'납부 완료',value:`${taxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length}명`,color:'text-emerald-600'},{label:'미납',value:`${taxes.flatMap(t=>t.recipients).filter(r=>!r.isPaid).length}명`,color:'text-red-600'},{label:'전체 납부율',value:`${Math.round(taxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length/Math.max(1,taxes.flatMap(t=>t.recipients).length)*100)}%`,color:'text-blue-600'}]} /></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto pb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
                 {taxes.map(tax => {
                     const paidRecipients = tax.recipients.filter(r => r.isPaid);
                     const unpaidRecipients = tax.recipients.filter(r => !r.isPaid);
@@ -1600,47 +1629,7 @@ const TaxView: React.FC<{ students: User[] }> = ({ students }) => {
                                     <button onClick={() => setConfirmAction({ type: 'delete', data: tax.id })} className="text-xs text-gray-400 hover:text-red-500 underline mt-1">삭제</button>
                                 </div>
                             </div>
-                            <div className="mt-4">
-                                <div 
-                                    className="flex justify-between text-xs mb-1 cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors select-none"
-                                    onClick={() => toggleExpand(tax.id)}
-                                >
-                                    <span className="text-gray-600 flex items-center">
-                                        납부율 
-                                        {isExpanded ? <ArrowUpIcon className="w-3 h-3 ml-1"/> : <ArrowDownIcon className="w-3 h-3 ml-1"/>}
-                                    </span>
-                                    <span className="font-bold text-indigo-600">{Math.round(progress)}% ({paidCount}/{totalCount})</span>
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-2.5 mb-2">
-                                    <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                                </div>
-                                {isExpanded && (
-                                    <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4 animate-fadeIn">
-                                        <div>
-                                            <h4 className="text-xs font-bold text-green-600 mb-2 flex items-center">
-                                                <CheckIcon className="w-3 h-3 mr-1"/> 납부 완료 ({paidCount})
-                                            </h4>
-                                            <ul className="text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto">
-                                                {paidRecipients.map(r => (
-                                                    <li key={r.id} className="truncate">• {getStudentName(r.studentUserId)}</li>
-                                                ))}
-                                                {paidCount === 0 && <li className="text-gray-400 italic">없음</li>}
-                                            </ul>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-xs font-bold text-red-500 mb-2 flex items-center">
-                                                <XIcon className="w-3 h-3 mr-1"/> 미납 ({unpaidRecipients.length})
-                                            </h4>
-                                            <ul className="text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto">
-                                                {unpaidRecipients.map(r => (
-                                                    <li key={r.id} className="truncate">• {getStudentName(r.studentUserId)}</li>
-                                                ))}
-                                                {unpaidRecipients.length === 0 && <li className="text-gray-400 italic">없음</li>}
-                                            </ul>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                            <div className="mt-4"><DonutCard title={`납부율 ${Math.round(progress)}%`} centerLabel="대상 학생" data={[{name:'납부',value:paidCount,details:paidRecipients.map(r=>getStudentName(r.studentUserId))},{name:'미납',value:unpaidRecipients.length,details:unpaidRecipients.map(r=>getStudentName(r.studentUserId))}]}/></div>
                         </div>
                     );
                 })}
@@ -1663,12 +1652,15 @@ const FundManagementView: React.FC<{ students: User[] }> = ({ students }) => {
     const [fundToSettle, setFundToSettle] = useState<{ fund: Fund, status: FundStatus } | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [fundToDelete, setFundToDelete] = useState<string | null>(null); // 삭제 확인용 상태 추가
+    const [fundInvestors, setFundInvestors] = useState<Record<string,{student_name:string;units:number;invested_amount:number}[]>>({});
 
     const fetchFunds = useCallback(async () => {
         setLoading(true);
         try {
             const data = await api.getFunds(currentUser?.userId || '');
             setFunds(data);
+            const entries=await Promise.all(data.map(async fund=>[fund.id,await api.getFundInvestors(fund.id)] as const));
+            setFundInvestors(Object.fromEntries(entries));
         } catch (e) { 
             console.error(e); 
         } finally { 
@@ -1710,19 +1702,19 @@ const FundManagementView: React.FC<{ students: User[] }> = ({ students }) => {
     return (
         <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">펀드 관리</h2>
+                <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">펀드 관리</h2><FeatureGuide title="펀드 관리 사용 안내" label="펀드 관리 사용 안내" items={[{title:'펀드를 등록해요',description:'목표와 기간, 보상 조건을 설정합니다.'},{title:'가입 현황을 봐요',description:'원그래프와 투자자 목록에서 참여와 투자액을 확인합니다.'}]}/></div>
                 <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576] transition-all">
                     + 펀드 등록
                 </button>
             </div>
-            <div className="mb-4 space-y-3"><OverviewCards items={[{label:'전체 펀드',value:`${funds.length}개`},{label:'모집·진행 중',value:`${funds.filter(f=>[FundStatus.RECRUITING,FundStatus.ONGOING].includes(f.status)).length}개`,color:'text-blue-600'},{label:'참여 학생 합계',value:`${funds.reduce((s,f)=>s+(f.investorCount||0),0)}명`,color:'text-emerald-600'},{label:'총 투자금',value:`${funds.reduce((s,f)=>s+(f.totalInvestedAmount||0),0).toLocaleString()}${unit}`}]} /><MiniBars title="펀드별 목표 달성 현황" rows={funds.map(f=>({label:f.name,value:Math.min(100,(f.totalInvestedAmount||0)/Math.max(1,f.targetAmount)*100),display:`${Math.round((f.totalInvestedAmount||0)/Math.max(1,f.targetAmount)*100)}%`}))} color="bg-violet-500" /></div>
+            <div className="mb-4"><OverviewCards items={[{label:'전체 펀드',value:`${funds.length}개`},{label:'모집·진행 중',value:`${funds.filter(f=>[FundStatus.RECRUITING,FundStatus.ONGOING].includes(f.status)).length}개`,color:'text-blue-600'},{label:'참여 학생 합계',value:`${funds.reduce((s,f)=>s+(f.investorCount||0),0)}명`,color:'text-emerald-600'},{label:'총 투자금',value:`${funds.reduce((s,f)=>s+(f.totalInvestedAmount||0),0).toLocaleString()}${unit}`}]} /></div>
             
             {loading ? (
                 <div className="flex items-center justify-center py-20">
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2B548F]"></div>
                 </div>
             ) : funds.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {funds.map(f => {
                         // DB에서 가져온 creatorName이 없을 경우, 현재 로드된 학생 목록(students)에서 이름을 한 번 더 찾음
                         const creator = students.find(s => s.userId === f.creatorId);
@@ -1743,6 +1735,7 @@ const FundManagementView: React.FC<{ students: User[] }> = ({ students }) => {
                                     </div>
                                 </div>
                                 <p className="text-xs text-gray-900 font-bold mb-3 line-clamp-2 min-h-[2.5rem]">{f.description}</p>
+                                <DonutCard title="전체 학생 대비 가입자" centerLabel="학생" data={[{name:'가입자',value:fundInvestors[f.id]?.length||f.investorCount||0,details:(fundInvestors[f.id]||[]).map(inv=>inv.student_name)},{name:'미가입자',value:Math.max(0,students.length-(fundInvestors[f.id]?.length||f.investorCount||0)),details:students.filter(s=>!(fundInvestors[f.id]||[]).some(inv=>inv.student_name===s.name)).map(s=>s.name)}]}/>
                                 <div className="bg-gray-50 p-3 rounded-lg text-xs mb-4 space-y-2">
                                     <div className="flex justify-between">
                                         <span className="text-gray-900 font-black">목표 / 모집액</span>
@@ -2005,6 +1998,7 @@ const DonationParticipantsModal: React.FC<{ donation: Donation, onClose: () => v
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const unit = useContext(AuthContext).currentUser?.currencyUnit || '권';
+    const sortedLogs=[...logs].sort((a,b)=>Number(b.amount)-Number(a.amount));
 
     useEffect(() => {
         api.getDonationLogs(donation.id).then(data => {
@@ -2030,8 +2024,8 @@ const DonationParticipantsModal: React.FC<{ donation: Donation, onClose: () => v
                     {loading ? (
                         <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600"></div></div>
                     ) : logs.length > 0 ? (
-                        <div className="space-y-2">
-                            {logs.map(log => (
+                        <div className="space-y-2"><SegmentedBar title="기부자별 기부 비율" unit={unit} rows={sortedLogs.map(log=>({name:log.user?.name||'학생',value:Number(log.amount)}))}/>
+                            {sortedLogs.map(log => (
                                 <div key={log.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-xs font-black text-gray-400 border border-gray-100">
@@ -2118,12 +2112,16 @@ const DonationManagementView: React.FC = () => {
     const [viewingDonation, setViewingDonation] = useState<Donation | null>(null);
     const [deletingDonationId, setDeletingDonationId] = useState<string | null>(null);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [donationLogs, setDonationLogs] = useState<Record<string,any[]>>({});
+    const [allStudents, setAllStudents] = useState<User[]>([]);
 
     const fetchDonations = useCallback(async () => {
         setLoading(true);
         try {
             const data = await api.getDonations(currentUser?.userId || '');
             setDonations(data);
+            const [students,logEntries]=await Promise.all([api.getUsersByRole(Role.STUDENT,currentUser?.userId||''),Promise.all(data.map(async donation=>[donation.id,await api.getDonationLogs(donation.id)] as const))]);
+            setAllStudents(students); setDonationLogs(Object.fromEntries(logEntries));
         } catch (e) {
             console.error(e);
         } finally {
@@ -2163,7 +2161,7 @@ const DonationManagementView: React.FC = () => {
     return (
         <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">기부 관리</h2>
+                <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">기부 관리</h2><FeatureGuide title="기부 관리 사용 안내" label="기부 관리 사용 안내" items={[{title:'기부함을 만들어요',description:'목적과 소개를 작성해 공개합니다.'},{title:'참여를 확인해요',description:'원그래프와 참여자 목록에서 기부 현황을 확인합니다.'}]}/></div>
                 <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-pink-600 text-white rounded-lg text-sm font-bold shadow hover:bg-pink-700 transition-all">
                     + 기부 등록
                 </button>
@@ -2175,13 +2173,14 @@ const DonationManagementView: React.FC = () => {
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600"></div>
                 </div>
             ) : donations.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {donations.map(d => (
                         <div key={d.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                             {d.imageUrl && (
                                 <img src={d.imageUrl} alt={d.title} className="w-full h-40 object-cover" referrerPolicy="no-referrer" />
                             )}
                             <div className="p-5 flex flex-col flex-grow">
+                                <DonutCard title="전체 학생 대비 기부 참여" centerLabel="학생" data={[{name:'기부 참여',value:new Set((donationLogs[d.id]||[]).map(log=>log.user?.name)).size,details:(donationLogs[d.id]||[]).map(log=>log.user?.name).filter(Boolean)},{name:'미참여',value:Math.max(0,allStudents.length-new Set((donationLogs[d.id]||[]).map(log=>log.user?.name)).size),details:allStudents.filter(s=>!(donationLogs[d.id]||[]).some(log=>log.user?.name===s.name)).map(s=>s.name)}]}/>
                                 <div className="flex justify-between items-start mb-2 gap-2">
                                     <h3 
                                         className="font-black text-lg text-black cursor-pointer hover:text-pink-600 transition-colors line-clamp-1"
@@ -2619,7 +2618,6 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                     <button onClick={handleLogout} className="p-2 text-gray-600"><LogoutIcon className="w-12 h-12" /></button>
                 </header>
                 <main className="flex-grow p-4 md:p-8 overflow-y-auto bg-[#F3F4F6]">
-                    <div className="mb-4 flex justify-end"><FeatureGuide title={`${view === 'dashboard' ? '교사 대시보드' : view === 'students' ? '학생 관리' : view === 'jobs' ? '직업 관리' : view === 'tax' ? '세금 관리' : view === 'funds' ? '펀드 관리' : '기부 관리'} 사용 안내`} items={guideByView[view]} /></div>
                     {loading ? <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2B548F]"></div></div> : renderContent()}
                 </main>
                 <nav className="md:hidden bg-white border-t grid grid-cols-6 pb-safe">

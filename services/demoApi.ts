@@ -16,7 +16,11 @@ function read(): State {
     const value = durableStorage.getItem(KEY) || sessionStorage.getItem(KEY);
     if (value) {
       const parsed = JSON.parse(value);
-      if (parsed.teacherUser?.userId === teacher && Array.isArray(parsed.accounts)) return parsed;
+      if (parsed.teacherUser?.userId === teacher && Array.isArray(parsed.accounts)) {
+        // Migrate older demo snapshots that stored percentages as 10 instead of 0.10.
+        parsed.savingsProducts?.forEach((product: any)=>{ if(Number(product.rate)>1) product.rate=Number(product.rate)/100; if(Number(product.cancellationRate)>1) product.cancellationRate=Number(product.cancellationRate)/100; });
+        return parsed;
+      }
     }
   } catch { /* Corrupt demo data may safely be replaced. */ }
   return fresh();

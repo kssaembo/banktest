@@ -23,6 +23,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
       desc: '학급 경제 시스템 전체 세팅, 학생 및 직업/세금 관리', 
       icon: MainAdminIcon, 
       color: 'bg-[#0066FF]',
+      image: '/design/role-teacher.png',
       target: 'admin' as const
     },
     { 
@@ -31,6 +32,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
       desc: '입출금 처리, 주식 상장/가격 관리 및 예금 상품 관리', 
       icon: MainBankIcon, 
       color: 'bg-[#5856D6]',
+      image: '/design/role-banker.png',
       target: 'banker' as const
     },
     { 
@@ -39,6 +41,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
       desc: '마트 POS기기를 통한 결제 관리 및 마트 수익금 송금', 
       icon: MainMartIcon, 
       color: 'bg-[#34C759]',
+      image: '/design/role-mart.png',
       target: 'mart' as const
     },
     { 
@@ -47,12 +50,13 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
       desc: '학생의 시점에서 자산 확인, 송금 및 투자 시스템 확인', 
       icon: StudentIcon, 
       color: 'bg-[#FF9500]/50',
+      image: '/design/hero-wallet.png',
       target: 'student' as const
     },
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[#F2F4F7] p-6 overflow-y-auto">
+    <div className="flex flex-col h-full bg-[radial-gradient(circle_at_top_left,#dbeafe_0,transparent_36%),linear-gradient(145deg,#f8fbff,#eef4ff)] p-6 overflow-y-auto">
       <div className="max-w-4xl mx-auto w-full flex-grow flex flex-col justify-center py-12">
         <header className="flex justify-between items-start mb-12">
           <div>
@@ -78,13 +82,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
               onClick={() => onSelect(role.target)}
               className="group relative bg-white p-8 rounded-[40px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] hover:scale-[1.03] hover:border-[#0066FF]/20 transition-all flex items-center text-left"
             >
-              {role.id === 'student' ? (
-                <div className={`w-20 h-20 ${role.color} rounded-[28px] flex items-center justify-center mr-6 shadow-lg shadow-gray-200 group-hover:rotate-6 transition-transform overflow-hidden shrink-0`}>
-                  <role.icon className="w-10 h-10 text-white" />
-                </div>
-              ) : (
-                <role.icon className="w-20 h-20 mr-6 group-hover:rotate-6 transition-transform shrink-0 object-contain" />
-              )}
+              <div className="mr-6 flex h-24 w-24 shrink-0 items-center justify-center rounded-[28px] bg-gradient-to-br from-blue-50 to-white shadow-inner"><img src={role.image} alt="" className="h-24 w-24 object-contain transition-transform group-hover:scale-110" /></div>
               
               <div className="flex-1 pr-4">
                 <h3 className="text-xl font-black text-gray-900 mb-1 group-hover:text-[#0066FF] transition-colors">{role.title}</h3>
