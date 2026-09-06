@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { sameAuthUser } from '../services/authIdentity';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../services/supabaseClient';
 import { isDemo, sessionKey } from '../services/runtime';
 
 function LiveTestAccess({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const identity = useRef<Session | null | undefined>(undefined);
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [email, setEmail] = useState('');
@@ -14,13 +16,18 @@ function LiveTestAccess({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     let authEventReceived = false;
+    const acceptSession = (next: Session | null) => {
+      if (!active || sameAuthUser(identity.current, next)) return;
+      identity.current = next;
+      setAllowed(false); setChecking(!!next); setSession(next);
+    };
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
       authEventReceived = true;
-      if (active) { setAllowed(false); setChecking(!!next); setSession(next); }
+      acceptSession(next);
     });
     supabase.auth.getSession().then(({ data, error: e }) => {
       if (!active || authEventReceived) return;
-      setSession(data.session); setChecking(!!data.session);
+      acceptSession(data.session);
       if (e) setError('로그인 상태를 확인하지 못했습니다. 다시 로그인해 주세요.');
     }).catch(() => { if (active) { setChecking(false); setError('로그인 상태를 확인하지 못했습니다.'); } });
     return () => { active = false; subscription.unsubscribe(); };
@@ -37,6 +44,7 @@ function LiveTestAccess({ children }: { children: React.ReactNode }) {
     return () => { active = false; };
   }, [session]);
   const signOut = async () => {
+    identity.current = null;
     setAllowed(false); setSession(null); setChecking(false);
     sessionStorage.removeItem(sessionKey); localStorage.removeItem(sessionKey);
     const { error: e } = await supabase.auth.signOut({ scope: 'local' });

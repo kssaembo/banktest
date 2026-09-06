@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { writeFileSync } from 'node:fs';
 import { build } from 'esbuild';
 import { spawnSync } from 'node:child_process';
 await build({
@@ -9,4 +11,6 @@ await build({
   }) },
 });
 const result = spawnSync(process.execPath, ['--test', '.test-build/development.test.mjs'], { stdio: 'inherit' });
+await build({entryPoints:['tests/auth-gate-browser.tsx'],outfile:'.test-build/auth-gate.js',bundle:true,format:'esm',define:{'import.meta.env':JSON.stringify({VITE_DATA_MODE:'supabase'})},plugins:[{name:'mock-supabase',setup(b){b.onResolve({filter:/services\/supabaseClient$/},()=>({path:fileURLToPath(new URL('../tests/auth-gate-mock.ts',import.meta.url))}));}}]});
+writeFileSync('.test-build/auth-gate.html','<!doctype html><meta charset="UTF-8"><div id="root"></div><p id="result">RUNNING</p><script type="module" src="./auth-gate.js"></script>');
 process.exit(result.status ?? 1);

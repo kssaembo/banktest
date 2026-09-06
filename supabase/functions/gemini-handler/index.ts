@@ -37,8 +37,8 @@ serve(async (req) => {
   try {
     const { action, payload } = await req.json()
     
-    const apiKey = (globalThis as any).Deno.env.get("API_KEY") || (globalThis as any).Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) throw new Error("API_KEY or GEMINI_API_KEY is not set.");
+    const apiKey = (globalThis as any).Deno.env.get("GEMINI_API_KEY")?.trim();
+    if (!apiKey) throw new Error("Supabase Secrets에 GEMINI_API_KEY를 등록해주세요.");
     
     const ai = new GoogleGenAI({ apiKey });
     // Stable production model. The previous preview id can return HTTP 400 after retirement.
@@ -116,10 +116,13 @@ serve(async (req) => {
   } catch (error: any) {
     console.error("Gemini Handler Error:", error.message);
     const raw=String(error?.message||error);
-    const depleted=raw.includes('prepayment credits are depleted')||raw.includes('RESOURCE_EXHAUSTED')||raw.includes('429');
-    return new Response(JSON.stringify({ error: depleted ? 'Gemini 사용 크레딧이 소진되었습니다. Google AI Studio 결제에서 크레딧을 충전해주세요.' : raw }), {
+    const depleted=raw.includes('prepayment credits are depleted');
+    const quota=depleted||raw.includes('RESOURCE_EXHAUSTED')||raw.includes('429');
+    const invalidKey=raw.includes('API_KEY_INVALID')||raw.includes('API key not valid');
+    const message=invalidKey ? 'Gemini API 키가 유효하지 않습니다. Supabase Secrets의 GEMINI_API_KEY 값을 Google AI Studio에서 발급한 유효한 키로 확인해주세요.' : depleted ? 'Gemini 선불 크레딧이 소진되었습니다. Google AI Studio 결제 설정을 확인해주세요.' : quota ? 'Gemini 요청 한도를 초과했습니다. 잠시 후 다시 시도하거나 Google AI Studio에서 프로젝트 한도를 확인해주세요.' : raw;
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: depleted ? 429 : 500
+      status: invalidKey ? 400 : quota ? 429 : 500
     })
   }
 })

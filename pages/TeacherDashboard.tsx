@@ -1,3 +1,4 @@
+import { dailyActivity } from '../services/activityStats';
 /* ... existing sql comments ... */
 import { api } from '../services/api';
 import React, { useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -974,7 +975,12 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
     const totalAssets = students.reduce((acc, s) => acc + (s.account?.balance || 0), 0);
     const avgAssets = students.length > 0 ? Math.round(totalAssets / students.length) : 0;
     const classTrend = useMemo(()=>makeBalanceTrend(Object.values(studentTransactions).flat(),totalAssets).map(point=>({label:point.label,total:point.value,average:Math.round(point.value/Math.max(1,students.length))})),[studentTransactions,totalAssets,students.length]);
-    const selectedTrend = useMemo(()=>trendStudent ? makeBalanceTrend(studentTransactions[trendStudent.userId]||[],trendStudent.account?.balance||0).map((point,index)=>({label:point.label,assets:point.value,activity:index+1})) : [],[trendStudent,studentTransactions]);
+    const selectedTrend = useMemo(() => {
+if (!trendStudent) return [];
+const transactions = studentTransactions[trendStudent.userId] || [];
+if (activeTab === 'assets') return makeBalanceTrend(transactions, trendStudent.account?.balance || 0).map(point => ({label: point.label, assets: point.value}));
+return dailyActivity(transactions);
+}, [trendStudent, studentTransactions, activeTab]);
     const exportCsv = async () => {
         if(!currentUser)return; setExporting(true);
         try{
@@ -1041,9 +1047,9 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                                 </button>
                             </div>
                         </div>
-                        <p className="text-xs text-blue-200 mt-4 flex items-center">내역 보기 <span className="ml-1">→</span></p>
+                        <p className="text-xs text-blue-200 mt-4 flex items-center">내역 보기 <span className="ml-1">→</span><img src="/design/hero-wallet.png" alt="" className="pointer-events-none ml-auto h-10 w-12 object-contain"/></p>
                     </div>
-                    <img src="/design/hero-wallet.png" alt="" className="pointer-events-none absolute bottom-0 right-24 hidden h-36 object-contain opacity-90 md:block"/>
+                    
                 </div>
 
                 {/* 우측 세로 배열 박스들 */}
@@ -1149,7 +1155,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                  </div>
                  
                  <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 flex flex-col">
-                     {trendStudent&&<div className="border-b bg-blue-50/50 p-4"><div className="flex items-center justify-between"><h3 className="font-black text-slate-800">{trendStudent.name} 학생 {activeTab==='assets'?'자산':'활동량'} 흐름</h3><span className="text-[10px] font-bold text-blue-500">순위에서 학생을 선택</span></div><TrendChart height={170} data={selectedTrend} lines={[activeTab==='assets'?{key:'assets',name:'자산 경향',color:'#2563eb'}:{key:'activity',name:'활동량 경향',color:'#10b981'}]}/></div>}
+                     {trendStudent&&<div className="border-b bg-blue-50/50 p-4"><div className="flex items-center justify-between"><h3 className="font-black text-slate-800">{trendStudent.name} 학생 {activeTab==='assets'?'자산':'활동량'} 흐름</h3><span className="text-[10px] font-bold text-blue-500">순위에서 학생을 선택</span></div><TrendChart height={170} data={selectedTrend} lines={[activeTab==='assets'?{key:'assets',name:'자산 경향',color:'#2563eb'}:{key:'activity',name:'활동량 (거래 건수)',color:'#10b981'}]}/></div>}
                      <div className="p-4 border-b bg-gray-50">
                          <h3 className="font-bold text-gray-800">국고 최근 거래 내역</h3>
                      </div>

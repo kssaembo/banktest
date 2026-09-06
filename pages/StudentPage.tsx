@@ -174,16 +174,14 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
 
     return (
         <div className="space-y-6">
-            <div role="button" tabIndex={0} onClick={()=>setAssetModal(true)} className="relative grid w-full cursor-pointer overflow-hidden rounded-[32px] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-7 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg md:grid-cols-[1fr_280px] md:items-center"><img src="/design/hero-wallet.png" alt="" className="pointer-events-none absolute -bottom-4 left-48 hidden h-40 opacity-90 md:block"/><div className="relative z-10"><p className="mb-2 text-sm font-black text-gray-800">내 총 자산</p><h2 className="text-4xl font-black tracking-tight text-gray-900">{totalAssets.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}<span className="ml-1 text-2xl">{unit}</span></h2><p className="mt-3 text-xs font-bold text-blue-600">자산 그래프 자세히 보기 ↗</p></div><DonutCard title="내 자산 구성" centerLabel={unit} data={[{name:'현금',value:account.balance},{name:'주식',value:stockValue},{name:'예금',value:savingsValue}]}/></div>
-
-            {unpaidTaxes.length > 0 && (
-                <div className="bg-red-50 p-6 rounded-3xl border border-red-100">
+<div className="grid w-full gap-5 rounded-[32px] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-5 md:p-7 text-left shadow-sm lg:grid-cols-[minmax(0,1fr)_280px] items-start"><div className="min-w-0"><p className="mb-2 text-sm font-black text-gray-800">내 총 자산</p><h2 className="text-4xl font-black tracking-tight text-gray-900">{totalAssets.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}<span className="ml-1 text-2xl">{unit}</span></h2>            {unpaidTaxes.length > 0 && (
+                <div className="mt-4 bg-red-50 p-4 rounded-3xl border border-red-100">
                     <h3 className="font-black text-red-700 mb-4 flex items-center tracking-tight text-lg">
                         <NewTaxIcon className="w-6 h-6 mr-2"/> 미납 세금 고지서
                     </h3>
                     <div className="space-y-3">
                         {unpaidTaxes.map(tax => (
-                            <div key={tax.recipientId} className="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+                            <div key={tax.recipientId} className="bg-white p-4 rounded-2xl shadow-sm flex flex-wrap gap-3 justify-between items-center">
                                 <div>
                                     <span className="font-black text-gray-900">{tax.name}</span>
                                     <span className="text-xs text-gray-700 ml-2 font-bold">~{new Date(tax.dueDate).toLocaleDateString()}</span>
@@ -202,7 +200,7 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
                     </div>
                 </div>
             )}
-
+<button onClick={()=>setAssetModal(true)} className="mt-3 text-xs font-bold text-blue-600">자산 그래프 자세히 보기 ↗</button></div><DonutCard title="내 자산 구성" centerLabel={unit} onSelect={()=>setAssetModal(true)} data={[{name:'현금',value:account.balance},{name:'주식',value:stockValue},{name:'예금',value:savingsValue}]}/></div>
             <div>
                 <h3 className="text-lg font-black text-gray-900 mb-4 ml-1 tracking-tight">최근 활동</h3>
                 <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">

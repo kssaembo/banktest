@@ -36,7 +36,7 @@ export const SectionTitle: React.FC<{ title: string; guide?: GuideItem[]; action
 
 export const OverviewCards: React.FC<{ items: { label: string; value: string; note?: string; color?: string }[] }> = ({ items }) => (
   <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-    {items.map(item => <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    {items.map(item => <div key={item.label} className="min-w-0 break-words rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
       <p className="text-xs font-bold text-slate-500">{item.label}</p>
       <p className={`mt-1 text-2xl font-black ${item.color || 'text-slate-900'}`}>{item.value}</p>
       {item.note && <p className="mt-1 text-[11px] font-medium text-slate-400">{item.note}</p>}

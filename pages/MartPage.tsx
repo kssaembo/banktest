@@ -98,7 +98,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                 </div>
                 <nav className="mt-8 flex flex-col space-y-2">
                     <DesktopNavButton label="마트 계산대" Icon={NewMartIcon} active={view === 'pos'} onClick={() => setView('pos')} />
-                    <DesktopNavButton label="품목 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
+                    <DesktopNavButton label="상품/서비스 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
                     <DesktopNavButton label="송금" Icon={TransferIcon} active={view === 'transfer'} onClick={() => setView('transfer')} />
                     <DesktopNavButton label="세부내역" Icon={NewHistoryIcon} active={view === 'history'} onClick={() => setView('history')} />
                 </nav>
@@ -111,7 +111,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
             </aside>
             
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col h-full">
+            <div className="min-w-0 flex-1 flex flex-col h-full">
                 {/* Header for Mobile */}
                 <header className="md:hidden p-4 flex justify-between items-center bg-white border-b sticky top-0 z-10">
                     <div>
@@ -124,8 +124,8 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                 </header>
 
                 <main className="flex-grow overflow-y-auto bg-[#D1D3D8]">
-                    <div className="flex flex-wrap items-center gap-3 bg-[#D1D3D8] px-4 pt-4"><h2 className="text-2xl font-black text-slate-800">{view==='pos'?'마트 계산대':view==='items'?'품목 관리':view==='transfer'?'마트 송금':'마트 세부내역'}</h2><FeatureGuide title={`${view==='pos'?'마트 계산대':view==='items'?'품목 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} label={`${view==='pos'?'마트 계산대':view==='items'?'품목 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} items={[
-                        { title: '품목을 준비해요', description: '품목 관리에서 자주 판매하는 상품과 가격을 등록합니다.' },
+                    <div className="flex flex-wrap items-center gap-3 bg-[#D1D3D8] px-4 pt-4"><h2 className="text-2xl font-black text-slate-800">{view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'}</h2><FeatureGuide title={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} label={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} items={[
+                        { title: '상품/서비스을 준비해요', description: '상품/서비스 관리에서 자주 판매하는 상품과 가격을 등록합니다.' },
                         { title: '계산대에서 선택해요', description: '학생을 고른 뒤 상품을 누르면 합계가 자동으로 입력됩니다. 금액을 직접 입력할 수도 있습니다.' },
                         { title: '거래를 확인해요', description: '결제 후 세부내역에서 금액과 시간을 확인하고, 송금 탭에서 마트 잔액을 이동합니다.' }
                     ]} /></div>
@@ -135,7 +135,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                 {/* Bottom Nav for Mobile */}
                 <nav className="md:hidden grid grid-cols-4 bg-white p-1 border-t sticky bottom-0 z-10">
                     <NavButton label="마트 계산대" Icon={NewMartIcon} active={view === 'pos'} onClick={() => setView('pos')} />
-                    <NavButton label="품목 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
+                    <NavButton label="상품/서비스 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
                     <NavButton label="송금" Icon={TransferIcon} active={view === 'transfer'} onClick={() => setView('transfer')} />
                     <NavButton label="세부내역" Icon={NewHistoryIcon} active={view === 'history'} onClick={() => setView('history')} />
                 </nav>
@@ -299,13 +299,13 @@ const PaymentView: React.FC<{
                 </div>
             </div>
 
-            {items.length > 0 && <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm"><div className="mb-3 flex items-center justify-between"><p className="font-black text-gray-700">등록 품목</p><span className="text-xs text-gray-400">눌러서 합계 입력</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">{items.map(item => <button key={item.id} onClick={() => addItem(item)} className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-left hover:border-blue-400"><span className="block truncate text-sm font-black text-gray-800">{item.name}</span><span className="text-xs font-bold text-blue-700">{item.price.toLocaleString()}{unit}{cart[item.id] ? ` × ${cart[item.id]}` : ''}</span></button>)}</div></div>}
+            {items.length > 0 && <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm"><div className="mb-3 flex items-center justify-between"><p className="font-black text-gray-700">등록 상품/서비스</p><span className="text-xs text-gray-400">눌러서 합계 입력</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">{items.map(item => <button key={item.id} onClick={() => addItem(item)} className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-left hover:border-blue-400"><span className="block truncate text-sm font-black text-gray-800">{item.name}</span><span className="text-xs font-bold text-blue-700">{item.price.toLocaleString()}{unit}{cart[item.id] ? ` × ${cart[item.id]}` : ''}</span></button>)}</div></div>}
             <div className="flex-grow flex flex-col md:flex-row md:gap-8 justify-between">
                 <div className="flex-grow flex items-center justify-center text-center p-4">
                      <div><p className="text-5xl font-mono font-bold tracking-tight text-gray-800 break-all sm:text-6xl">
                         {parseInt(amount || '0').toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                         <span className="text-3xl ml-2 font-sans font-medium">{unit}</span>
-                     </p>{Object.keys(cart).length > 0 && <p className="mt-3 text-sm font-bold text-blue-700">선택 품목 {(Object.values(cart) as number[]).reduce((a,b)=>a+b,0)}개 · <button onClick={clearCart} className="underline">선택 초기화</button></p>}</div>
+                     </p>{Object.keys(cart).length > 0 && <p className="mt-3 text-sm font-bold text-blue-700">선택 상품/서비스 {(Object.values(cart) as number[]).reduce((a,b)=>a+b,0)}개 · <button onClick={clearCart} className="underline">선택 초기화</button></p>}</div>
                 </div>
                 
                 <div className="w-full md:w-72 flex flex-col">
@@ -340,13 +340,13 @@ const PaymentView: React.FC<{
 const ItemManagementView: React.FC<{ teacherId: string; items: MartItem[]; refresh: () => Promise<void>; unit: string }> = ({ teacherId, items, refresh, unit }) => {
     const [name, setName] = useState(''); const [price, setPrice] = useState(''); const [category, setCategory] = useState('학용품');
     const [busy, setBusy] = useState(false); const [message, setMessage] = useState<{type:'success'|'error';text:string}|null>(null);
-    const add = async () => { if (!name.trim() || Number(price) <= 0) { setMessage({type:'error',text:'상품명과 0보다 큰 가격을 입력해주세요.'}); return; } setBusy(true); try { await api.addMartItem(teacherId,{name,price:Number(price),category}); setName('');setPrice('');await refresh();setMessage({type:'success',text:'품목을 등록했습니다.'}); } catch(e:any){setMessage({type:'error',text:e.message||'등록하지 못했습니다.'});} finally{setBusy(false);} };
+    const add = async () => { if (!name.trim() || Number(price) <= 0) { setMessage({type:'error',text:'상품/서비스명과 0보다 큰 가격을 입력해주세요.'}); return; } setBusy(true); try { await api.addMartItem(teacherId,{name,price:Number(price),category}); setName('');setPrice('');await refresh();setMessage({type:'success',text:'상품/서비스을 등록했습니다.'}); } catch(e:any){setMessage({type:'error',text:e.message||'등록하지 못했습니다.'});} finally{setBusy(false);} };
     const toggle = async (item: MartItem) => { await api.updateMartItem(item.id,{is_active:!item.is_active}); await refresh(); };
-    const remove = async (item: MartItem) => { if (!window.confirm(`'${item.name}' 품목을 삭제할까요?`)) return; await api.deleteMartItem(item.id); await refresh(); };
-    return <div className="space-y-5 p-4 md:p-6">
-        <OverviewCards items={[{label:'등록 품목',value:`${items.length}개`},{label:'판매 중',value:`${items.filter(i=>i.is_active).length}개`,color:'text-emerald-600'},{label:'평균 가격',value:`${Math.round(items.reduce((s,i)=>s+i.price,0)/Math.max(1,items.length)).toLocaleString()}${unit}`,color:'text-blue-600'},{label:'분류',value:`${new Set(items.map(i=>i.category)).size}개`}]} />
-        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-black text-gray-900">새 품목 추가</h2><div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_8rem]"><input value={name} onChange={e=>setName(e.target.value)} placeholder="상품명" className="rounded-xl border p-3"/><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder={`가격 (${unit})`} className="rounded-xl border p-3"/><input value={category} onChange={e=>setCategory(e.target.value)} placeholder="분류" className="rounded-xl border p-3"/><button disabled={busy} onClick={add} className="min-w-32 whitespace-nowrap rounded-xl bg-[#2B548F] px-8 py-3 font-black text-white disabled:opacity-50">추가</button></div></section>
-        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-black text-gray-900">품목 목록</h2><div className="space-y-2">{items.map(item=><div key={item.id} className={`flex items-center justify-between gap-4 rounded-xl border p-4 ${item.is_active?'border-gray-200':'border-gray-100 bg-gray-50 opacity-60'}`}><div><p className="font-black text-gray-900">{item.name}</p><p className="text-xs text-gray-500">{item.category} · {item.price.toLocaleString()}{unit}</p></div><div className="flex gap-2"><button onClick={()=>toggle(item)} className={`rounded-lg px-3 py-2 text-xs font-black ${item.is_active?'bg-emerald-50 text-emerald-700':'bg-gray-200 text-gray-600'}`}>{item.is_active?'판매 중':'숨김'}</button><button onClick={()=>remove(item)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-600">삭제</button></div></div>)}{!items.length&&<p className="py-8 text-center text-gray-400">등록된 품목이 없습니다.</p>}</div></section>
+    const remove = async (item: MartItem) => { if (!window.confirm(`'${item.name}' 상품/서비스을 삭제할까요?`)) return; await api.deleteMartItem(item.id); await refresh(); };
+    return <div className="min-w-0 w-full space-y-5 p-3 md:p-4">
+        <OverviewCards items={[{label:'등록 상품/서비스',value:`${items.length}개`},{label:'판매 중',value:`${items.filter(i=>i.is_active).length}개`,color:'text-emerald-600'},{label:'평균 가격',value:`${Math.round(items.reduce((s,i)=>s+i.price,0)/Math.max(1,items.length)).toLocaleString()}${unit}`,color:'text-blue-600'},{label:'분류',value:`${new Set(items.map(i=>i.category)).size}개`}]} />
+        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-black text-gray-900">새 상품/서비스 추가</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem]"><input value={name} onChange={e=>setName(e.target.value)} placeholder="상품/서비스명" className="min-w-0 w-full rounded-xl border p-3"/><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder={`가격 (${unit})`} className="min-w-0 w-full rounded-xl border p-3"/><input value={category} onChange={e=>setCategory(e.target.value)} placeholder="분류" className="min-w-0 w-full rounded-xl border p-3"/><button disabled={busy} onClick={add} className="min-w-32 whitespace-nowrap rounded-xl bg-[#2B548F] px-8 py-3 font-black text-white disabled:opacity-50">추가</button></div></section>
+        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-black text-gray-900">상품/서비스 목록</h2><div className="space-y-2">{items.map(item=><div key={item.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${item.is_active?'border-gray-200':'border-gray-100 bg-gray-50 opacity-60'}`}><div className="min-w-0 flex-1 break-words"><p className="font-black text-gray-900">{item.name}</p><p className="text-xs text-gray-500">{item.category} · {item.price.toLocaleString()}{unit}</p></div><div className="flex shrink-0 gap-2"><button onClick={()=>toggle(item)} className={`rounded-lg px-3 py-2 text-xs font-black ${item.is_active?'bg-emerald-50 text-emerald-700':'bg-gray-200 text-gray-600'}`}>{item.is_active?'판매 중':'숨김'}</button><button onClick={()=>remove(item)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-600">삭제</button></div></div>)}{!items.length&&<p className="py-8 text-center text-gray-400">등록된 상품/서비스이 없습니다.</p>}</div></section>
         {message&&<MessageModal isOpen type={message.type} message={message.text} onClose={()=>setMessage(null)}/>} 
     </div>;
 };

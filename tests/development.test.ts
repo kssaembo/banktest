@@ -139,3 +139,21 @@ test('real authentication and SQL-only analysis are explicitly unavailable local
   await assert.rejects(api.getSuspiciousTrading(teacher, '', ''), /서버 SQL/);
   assert.equal(requests, 0);
 });
+
+import { sameAuthUser } from '../services/authIdentity';
+import { dailyActivity } from '../services/activityStats';
+test('focus and token refresh preserve identity; signout and account changes revoke it', () => {
+  const session = { user: { id: 'tester-1' }, access_token: 'old' };
+  assert.equal(sameAuthUser(undefined, null), false);
+  assert.equal(sameAuthUser(undefined, session), false);
+  assert.equal(sameAuthUser(session, { user: { id: 'tester-1' } }), true);
+  assert.equal(sameAuthUser(session, { user: { id: 'tester-2' } }), false);
+  assert.equal(sameAuthUser(session, null), false);
+  assert.equal(sameAuthUser(null, session), false);
+});
+test('activity uses actual daily counts including inactive dates', () => {
+  assert.deepEqual(dailyActivity([{date:'2026-09-01T00:00:00Z'},{date:'2026-09-01T01:00:00Z'},{date:'2026-09-03T00:00:00Z'}]), [
+    {label:'2026-09-01',activity:2},{label:'2026-09-02',activity:0},{label:'2026-09-03',activity:1}
+  ]);
+  assert.deepEqual(dailyActivity([]), []);
+});
