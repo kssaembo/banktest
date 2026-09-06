@@ -16,6 +16,7 @@ import { EconomyReadingModal } from '../components/EconomyReadingModal';
 import { EconomyTypingModal } from '../components/EconomyTypingModal';
 import { EconomyTutorialLauncher } from '../components/EconomyTutorialModal';
 import { EconomyNewsModal } from '../components/EconomyNewsModal';
+import { FeatureGuide } from '../components/FeatureGuide';
 
 type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds';
 type NotificationType = { type: 'success' | 'error', text: string };
@@ -1526,7 +1527,9 @@ const DonationModal: React.FC<{
 
 const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) => {
     const { currentUser, logout } = useContext(AuthContext);
-    const [view, setView] = useState<View>((initialView as View) || 'transfer');
+    const studentViewKey = `class_bank_student_view_${currentUser?.userId || 'unknown'}`;
+    const [view, setViewState] = useState<View>(() => (initialView as View) || (localStorage.getItem(studentViewKey) as View) || 'transfer');
+    const setView = (next: View) => { setViewState(next); localStorage.setItem(studentViewKey, next); };
     const [showDonationModal, setShowDonationModal] = useState(false);
     const [showReadingModal, setShowReadingModal] = useState(false);
     const [showTypingModal, setShowTypingModal] = useState(false);
@@ -1693,6 +1696,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
                 <main className="flex-grow overflow-y-auto p-4 md:p-10 pb-28 md:pb-10">
                     <div className="max-w-4xl mx-auto">
+                        {(activeStudent || currentUser.role === Role.STUDENT) && <div className="mb-3 flex justify-end"><FeatureGuide title={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} items={view === 'home' ? [{title:'자산을 확인해요',description:'현금과 투자·예금 현황을 한눈에 확인합니다.'},{title:'최근 활동을 봐요',description:'최근 거래 금액과 내용을 확인합니다.'}] : view === 'transfer' ? [{title:'받는 친구를 확인해요',description:'친구의 계좌번호를 정확히 입력합니다.'},{title:'금액을 확인해요',description:'송금 전 받는 사람과 금액을 다시 확인합니다.'}] : view === 'stocks' ? [{title:'종목을 살펴봐요',description:'현재 가격과 변화를 확인합니다.'},{title:'수량을 정해요',description:'내 잔액과 보유 수량을 확인한 뒤 거래합니다.'}] : view === 'savings' ? [{title:'상품을 비교해요',description:'만기, 이자율과 최대 가입 금액을 비교합니다.'},{title:'가입 후 확인해요',description:'내 예금에서 원금과 만기일을 확인합니다.'}] : [{title:'목표를 읽어요',description:'펀드의 목표와 모집·만기 일정을 확인합니다.'},{title:'위험과 보상을 확인해요',description:'성공과 실패 조건을 읽고 투자 수량을 결정합니다.'}]} /></div>}
                         <div className="md:hidden flex justify-end mb-2">
                             <EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name} isMobile />
                         </div>

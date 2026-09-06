@@ -2,6 +2,14 @@
 import { api } from '../services/api';
 import React, { useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
+import { FeatureGuide, MiniBars, OverviewCards } from '../components/FeatureGuide';
+
+const downloadFile = (name: string, content: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = name; anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 import { User, Role, Account, Transaction, Job, AssignedStudent, TransactionType, TaxItemWithRecipients, Fund, FundStatus, Donation } from '../types';
 import { LogoutIcon, QrCodeIcon, UserAddIcon, XIcon, CheckIcon, ErrorIcon, BackIcon, NewDashboardIcon, NewBriefcaseIcon, NewManageAccountsIcon, ManageIcon, NewTaxIcon, NewFundIcon, NewStudentIcon, PencilIcon, ArrowDownIcon, ArrowUpIcon, PlusIcon, BellIcon, TransferIcon, HeartIcon, NewStockIcon } from '../components/icons';
 import { QRCodeSVG } from 'qrcode.react';
@@ -843,6 +851,8 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
     const [studentActivities, setStudentActivities] = useState<Record<string, number>>({});
     const [alarms, setAlarms] = useState<AlarmItem[]>([]);
     const [isAlarmsLoading, setIsAlarmsLoading] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    const [exportMessage, setExportMessage] = useState<string | null>(null);
 
     const alias = currentUser?.teacherAlias || '교사';
     const unit = currentUser?.currencyUnit || '권';
@@ -943,6 +953,24 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
 
     const totalAssets = students.reduce((acc, s) => acc + (s.account?.balance || 0), 0);
     const avgAssets = students.length > 0 ? Math.round(totalAssets / students.length) : 0;
+    const assetRows = [...students].sort((a,b)=>(b.account?.balance||0)-(a.account?.balance||0)).map(s => ({ label: `${s.number || '-'}번 ${s.name}`, value: s.account?.balance || 0, display: `${(s.account?.balance || 0).toLocaleString()}${unit}` }));
+
+    const exportCsv = () => {
+        const rows = [['번호','이름','학년','반','계좌번호','현재 잔액'], ...students.map(s => [s.number,s.name,s.grade,s.class,s.account?.accountId,s.account?.balance ?? 0])];
+        downloadFile(`classbank-students-${new Date().toISOString().slice(0,10)}.csv`, '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\n'), 'text/csv;charset=utf-8');
+        setExportMessage('학생·잔액 CSV를 저장했습니다.');
+    };
+    const exportBackup = async () => {
+        if (!currentUser) return; setExporting(true);
+        try {
+            const teacherId = currentUser.userId;
+            const [jobs,taxes,funds,donations,savings,stocks,teacherAccount] = await Promise.all([api.getJobs(teacherId),api.getTaxes(teacherId),api.getFunds(teacherId),api.getDonations(teacherId),api.getSavingsProducts(teacherId),api.getStockProducts(teacherId),api.getTeacherAccount(teacherId)]);
+            const transactionGroups = await Promise.all([teacherAccount, ...students.map(s=>s.account)].filter(Boolean).map(acc => api.getTransactionsByAccountId((acc as Account).accountId)));
+            const backup = { format:'classbank-backup-v1', exportedAt:new Date().toISOString(), teacher:{ userId:teacherId, alias:currentUser.teacherAlias, classCode:currentUser.classCode, currencyUnit:unit }, students, jobs, taxes, funds, donations, savings, stocks, transactions:transactionGroups.flat() };
+            downloadFile(`classbank-backup-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(backup,null,2), 'application/json;charset=utf-8');
+            setExportMessage('학급 데이터 백업 파일을 저장했습니다.');
+        } catch(e:any){ setExportMessage(e.message || '백업을 만들지 못했습니다.'); } finally { setExporting(false); }
+    };
     
     const sortedRankingList = useMemo(() => {
         let list = [...students];
@@ -962,6 +990,7 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
 
     return (
         <div className="space-y-6">
+             <div className="flex flex-wrap justify-end gap-2"><button onClick={exportCsv} className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-black text-emerald-700">CSV 다운로드</button><button onClick={exportBackup} disabled={exporting} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-black text-white disabled:opacity-50">{exporting?'백업 준비 중...':'전체 백업'}</button></div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* 선생님 지갑 박스: 가로 2배 (md:col-span-2) */}
                 <div onClick={() => { setVisibleHistoryModalTxns(10); setShowHistoryModal(true); }} className="md:col-span-2 bg-[#2B548F] text-white p-8 rounded-xl shadow-lg cursor-pointer hover:bg-[#234576] transition-colors relative overflow-hidden group min-h-[160px] flex flex-col justify-center">
@@ -1007,6 +1036,9 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                     </div>
                 </div>
              </div>
+
+             <MiniBars title="학생별 현재 자산 현황" rows={assetRows} color="bg-indigo-500" />
+             {exportMessage && <div className="rounded-xl bg-blue-50 p-3 text-center text-sm font-bold text-blue-700">{exportMessage} <button onClick={()=>setExportMessage(null)} className="ml-2 underline">닫기</button></div>}
 
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
@@ -1437,6 +1469,7 @@ const JobManagementView: React.FC<{ refresh: () => void }> = ({ refresh }) => {
                     </button>
                 </div>
             </div>
+            <div className="mb-4 space-y-3"><OverviewCards items={[{label:'등록 직업',value:`${jobs.length}개`},{label:'배정 학생',value:`${new Set(jobs.flatMap(j=>j.assigned_students.map(s=>s.userId))).size}명`,color:'text-blue-600'},{label:'미배정 학생',value:`${Math.max(0,students.length-new Set(jobs.flatMap(j=>j.assigned_students.map(s=>s.userId))).size)}명`,color:'text-amber-600'},{label:'예상 총급여',value:`${jobs.reduce((sum,j)=>sum+(j.salary+(j.incentive||0))*j.assigned_students.length,0).toLocaleString()}${unit}`}]} /><MiniBars title="직업별 담당 학생" rows={jobs.map(j=>({label:j.jobName,value:j.assigned_students.length,display:`${j.assigned_students.length}명`}))} color="bg-blue-500" /></div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
                 {jobs.map(job => (
                     <div key={job.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col">
@@ -1546,6 +1579,7 @@ const TaxView: React.FC<{ students: User[] }> = ({ students }) => {
                     + 세금 고지
                 </button>
             </div>
+            <div className="mb-4"><OverviewCards items={[{label:'고지 건수',value:`${taxes.length}건`},{label:'납부 완료',value:`${taxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length}명`,color:'text-emerald-600'},{label:'미납',value:`${taxes.flatMap(t=>t.recipients).filter(r=>!r.isPaid).length}명`,color:'text-red-600'},{label:'전체 납부율',value:`${Math.round(taxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length/Math.max(1,taxes.flatMap(t=>t.recipients).length)*100)}%`,color:'text-blue-600'}]} /></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto pb-4">
                 {taxes.map(tax => {
                     const paidRecipients = tax.recipients.filter(r => r.isPaid);
@@ -1681,6 +1715,7 @@ const FundManagementView: React.FC<{ students: User[] }> = ({ students }) => {
                     + 펀드 등록
                 </button>
             </div>
+            <div className="mb-4 space-y-3"><OverviewCards items={[{label:'전체 펀드',value:`${funds.length}개`},{label:'모집·진행 중',value:`${funds.filter(f=>[FundStatus.RECRUITING,FundStatus.ONGOING].includes(f.status)).length}개`,color:'text-blue-600'},{label:'참여 학생 합계',value:`${funds.reduce((s,f)=>s+(f.investorCount||0),0)}명`,color:'text-emerald-600'},{label:'총 투자금',value:`${funds.reduce((s,f)=>s+(f.totalInvestedAmount||0),0).toLocaleString()}${unit}`}]} /><MiniBars title="펀드별 목표 달성 현황" rows={funds.map(f=>({label:f.name,value:Math.min(100,(f.totalInvestedAmount||0)/Math.max(1,f.targetAmount)*100),display:`${Math.round((f.totalInvestedAmount||0)/Math.max(1,f.targetAmount)*100)}%`}))} color="bg-violet-500" /></div>
             
             {loading ? (
                 <div className="flex items-center justify-center py-20">
@@ -2133,6 +2168,7 @@ const DonationManagementView: React.FC = () => {
                     + 기부 등록
                 </button>
             </div>
+            <div className="mb-4"><OverviewCards items={[{label:'전체 모금함',value:`${donations.length}개`},{label:'진행 중',value:`${donations.filter(d=>d.status==='ongoing').length}개`,color:'text-pink-600'},{label:'종료',value:`${donations.filter(d=>d.status==='completed').length}개`},{label:'누적 기부액',value:`${donations.reduce((s,d)=>s+(d.current_amount||0),0).toLocaleString()}${unit}`,color:'text-emerald-600'}]} /></div>
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">
@@ -2457,7 +2493,13 @@ const StockTransactionsModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
 
 const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => {
     const { currentUser, logout } = useContext(AuthContext);
-    const [view, setView] = useState<'dashboard' | 'students' | 'jobs' | 'tax' | 'funds' | 'donations'>('dashboard');
+    type TeacherView = 'dashboard' | 'students' | 'jobs' | 'tax' | 'funds' | 'donations';
+    const teacherSectionKey = `class_bank_teacher_section_${currentUser?.userId || 'unknown'}`;
+    const [view, setViewState] = useState<TeacherView>(() => {
+        const saved = localStorage.getItem(teacherSectionKey);
+        return ['dashboard','students','jobs','tax','funds','donations'].includes(saved || '') ? saved as TeacherView : 'dashboard';
+    });
+    const setView = (next: TeacherView) => { setViewState(next); localStorage.setItem(teacherSectionKey, next); };
     const [showStockTransactions, setShowStockTransactions] = useState(false);
     const [students, setStudents] = useState<(User & { account: Account | null })[]>([]);
     const [loading, setLoading] = useState(true);
@@ -2494,6 +2536,14 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     const alias = currentUser?.teacherAlias || '교사 관리자';
     const classCode = currentUser?.classCode || '----';
     const handleLogout = onBackToMenu || logout;
+    const guideByView: Record<TeacherView, { title: string; description: string }[]> = {
+        dashboard: [{title:'현황을 살펴봐요',description:'학생 자산, 활동량, 국고와 주요 알림을 한눈에 확인합니다.'},{title:'자료를 저장해요',description:'CSV는 학생 현황을, 전체 백업은 주요 학급 데이터를 파일로 저장합니다.'},{title:'알림을 확인해요',description:'세금 마감, 펀드 만기와 큰 거래를 확인합니다.'}],
+        students: [{title:'학생을 등록해요',description:'학생 계정과 번호를 만들고 QR 또는 로그인 정보를 제공합니다.'},{title:'정보를 관리해요',description:'학생 정보를 수정하거나 필요한 계정을 선택해 관리합니다.'},{title:'삭제 전 확인해요',description:'학생 삭제는 연결된 금융 정보에 영향을 줄 수 있으므로 백업 후 진행하세요.'}],
+        jobs: [{title:'직업을 만들어요',description:'역할 설명과 기본 급여를 정해 직업을 등록합니다.'},{title:'학생을 배정해요',description:'직업별 담당 학생을 선택하고 인센티브를 설정합니다.'},{title:'급여를 지급해요',description:'개별 직업 또는 전체 직업의 급여를 지급합니다.'}],
+        tax: [{title:'세금을 고지해요',description:'세금명, 금액, 납부 마감일과 대상 학생을 정합니다.'},{title:'납부율을 확인해요',description:'상단 현황과 세금별 진행 막대에서 납부 상태를 확인합니다.'},{title:'미납자를 확인해요',description:'세금 카드를 펼치면 납부·미납 학생을 확인할 수 있습니다.'}],
+        funds: [{title:'펀드를 등록해요',description:'목표, 모집 기간, 만기와 보상 조건을 설정합니다.'},{title:'참여 현황을 확인해요',description:'목표 달성률과 투자자 목록을 확인합니다.'},{title:'결과를 정산해요',description:'실행 결과를 확인한 뒤 성공·초과·실패로 정산합니다.'}],
+        donations: [{title:'모금함을 만들어요',description:'기부 목적과 소개, 관련 이미지를 등록합니다.'},{title:'참여를 확인해요',description:'모금액과 참여 학생 기록을 확인합니다.'},{title:'종료해요',description:'목표 활동이 끝나면 모금함을 종료합니다.'}]
+    };
 
     const renderContent = () => {
         switch (view) {
@@ -2569,6 +2619,7 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                     <button onClick={handleLogout} className="p-2 text-gray-600"><LogoutIcon className="w-12 h-12" /></button>
                 </header>
                 <main className="flex-grow p-4 md:p-8 overflow-y-auto bg-[#F3F4F6]">
+                    <div className="mb-4 flex justify-end"><FeatureGuide title={`${view === 'dashboard' ? '교사 대시보드' : view === 'students' ? '학생 관리' : view === 'jobs' ? '직업 관리' : view === 'tax' ? '세금 관리' : view === 'funds' ? '펀드 관리' : '기부 관리'} 사용 안내`} items={guideByView[view]} /></div>
                     {loading ? <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2B548F]"></div></div> : renderContent()}
                 </main>
                 <nav className="md:hidden bg-white border-t grid grid-cols-6 pb-safe">

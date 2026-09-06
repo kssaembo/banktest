@@ -33,7 +33,7 @@ export const EconomyNewsModal: React.FC<EconomyNewsModalProps> = ({ isOpen, onCl
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-[28px] md:rounded-[36px] w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-white" 
+        className="bg-white rounded-[28px] md:rounded-[36px] w-full max-w-7xl h-[94vh] flex flex-col shadow-2xl overflow-hidden border border-white" 
         onClick={e => e.stopPropagation()}
       >
         {/* 모달 헤더 */}

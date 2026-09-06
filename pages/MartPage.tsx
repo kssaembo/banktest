@@ -2,10 +2,11 @@
 import { api } from '../services/api';
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { User, Role, Account, Transaction } from '../types';
+import { User, Role, Account, Transaction, MartItem } from '../types';
 import { LogoutIcon, StudentIcon, CheckIcon, ErrorIcon, BackIcon, TransferIcon, NewMartIcon, NewHistoryIcon } from '../components/icons';
+import { FeatureGuide, OverviewCards } from '../components/FeatureGuide';
 
-type MartView = 'pos' | 'transfer' | 'history';
+type MartView = 'pos' | 'items' | 'transfer' | 'history';
 
 // Message Modal Component
 const MessageModal: React.FC<{
@@ -33,8 +34,11 @@ const MessageModal: React.FC<{
 
 const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => {
     const { currentUser, logout } = useContext(AuthContext);
-    const [view, setView] = useState<MartView>('pos');
+    const viewKey = `class_bank_mart_view_${currentUser?.userId || 'unknown'}`;
+    const [view, setViewState] = useState<MartView>(() => (localStorage.getItem(viewKey) as MartView) || 'pos');
+    const setView = (next: MartView) => { setViewState(next); localStorage.setItem(viewKey, next); };
     const [martAccount, setMartAccount] = useState<Account | null>(null);
+    const [items, setItems] = useState<MartItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     const handleLogout = onBackToMenu || logout;
@@ -57,6 +61,13 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
         fetchMartAccount();
     }, [fetchMartAccount]);
 
+    const teacherId = currentUser?.role === Role.TEACHER ? currentUser.userId : (currentUser?.teacher_id || currentUser?.userId || '');
+    const fetchItems = useCallback(async () => {
+        if (!teacherId) return;
+        try { setItems(await api.getMartItems(teacherId)); } catch (error) { console.error('Failed to fetch mart items', error); }
+    }, [teacherId]);
+    useEffect(() => { fetchItems(); }, [fetchItems]);
+
     const renderContent = () => {
         if (loading || !martAccount) {
             return <div className="text-center p-8">마트 정보를 불러오는 중...</div>;
@@ -64,14 +75,16 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
 
         switch (view) {
             case 'pos':
-                return <PosView currentUser={currentUser} />;
+                return <PosView currentUser={currentUser} items={items.filter(item => item.is_active)} />;
+            case 'items':
+                return <ItemManagementView teacherId={teacherId} items={items} refresh={fetchItems} unit={currentUser?.currencyUnit || '권'} />;
             case 'transfer':
                 // Pass silent refresh to prevent unmounting TransferView (and hiding modal)
                 return <TransferView martAccount={martAccount} refreshAccount={() => fetchMartAccount(true)} />;
             case 'history':
                 return <HistoryView martAccount={martAccount} />;
             default:
-                return <PosView currentUser={currentUser} />;
+                return <PosView currentUser={currentUser} items={items.filter(item => item.is_active)} />;
         }
     };
 
@@ -85,6 +98,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                 </div>
                 <nav className="mt-8 flex flex-col space-y-2">
                     <DesktopNavButton label="마트 계산대" Icon={NewMartIcon} active={view === 'pos'} onClick={() => setView('pos')} />
+                    <DesktopNavButton label="품목 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
                     <DesktopNavButton label="송금" Icon={TransferIcon} active={view === 'transfer'} onClick={() => setView('transfer')} />
                     <DesktopNavButton label="세부내역" Icon={NewHistoryIcon} active={view === 'history'} onClick={() => setView('history')} />
                 </nav>
@@ -110,12 +124,18 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                 </header>
 
                 <main className="flex-grow overflow-y-auto bg-[#D1D3D8]">
+                    <div className="flex justify-end bg-[#D1D3D8] px-4 pt-4"><FeatureGuide title="마트 모드 사용 안내" items={[
+                        { title: '품목을 준비해요', description: '품목 관리에서 자주 판매하는 상품과 가격을 등록합니다.' },
+                        { title: '계산대에서 선택해요', description: '학생을 고른 뒤 상품을 누르면 합계가 자동으로 입력됩니다. 금액을 직접 입력할 수도 있습니다.' },
+                        { title: '거래를 확인해요', description: '결제 후 세부내역에서 금액과 시간을 확인하고, 송금 탭에서 마트 잔액을 이동합니다.' }
+                    ]} /></div>
                     {renderContent()}
                 </main>
 
                 {/* Bottom Nav for Mobile */}
-                <nav className="md:hidden grid grid-cols-3 bg-white p-1 border-t sticky bottom-0 z-10">
+                <nav className="md:hidden grid grid-cols-4 bg-white p-1 border-t sticky bottom-0 z-10">
                     <NavButton label="마트 계산대" Icon={NewMartIcon} active={view === 'pos'} onClick={() => setView('pos')} />
+                    <NavButton label="품목 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
                     <NavButton label="송금" Icon={TransferIcon} active={view === 'transfer'} onClick={() => setView('transfer')} />
                     <NavButton label="세부내역" Icon={NewHistoryIcon} active={view === 'history'} onClick={() => setView('history')} />
                 </nav>
@@ -124,7 +144,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
     );
 };
 
-const PosView: React.FC<{currentUser: User | null}> = ({currentUser}) => {
+const PosView: React.FC<{currentUser: User | null; items: MartItem[]}> = ({currentUser, items}) => {
     type PosSubView = 'student-select' | 'payment' | 'result';
 
     const unit = currentUser?.currencyUnit || '권';
@@ -208,7 +228,7 @@ const PosView: React.FC<{currentUser: User | null}> = ({currentUser}) => {
     }
 
     if (subView === 'payment' && selectedStudent) {
-        return <PaymentView student={selectedStudent} amount={amount} setAmount={setAmount} onPay={handlePayment} onBack={reset} loading={loading} unit={unit} />;
+        return <PaymentView student={selectedStudent} amount={amount} setAmount={setAmount} onPay={handlePayment} onBack={reset} loading={loading} unit={unit} items={items} />;
     }
 
     return (
@@ -241,7 +261,16 @@ const PaymentView: React.FC<{
     onBack: () => void;
     loading: boolean;
     unit: string;
-}> = ({ student, amount, setAmount, onPay, onBack, loading, unit }) => {
+    items: MartItem[];
+}> = ({ student, amount, setAmount, onPay, onBack, loading, unit, items }) => {
+
+    const [cart, setCart] = useState<Record<string, number>>({});
+    const addItem = (item: MartItem) => {
+        const next = { ...cart, [item.id]: (cart[item.id] || 0) + 1 };
+        setCart(next);
+        setAmount(String(items.reduce((sum, row) => sum + row.price * (next[row.id] || 0), 0)));
+    };
+    const clearCart = () => { setCart({}); setAmount(''); };
 
     const handleKeypadClick = (key: string) => {
         if (key === 'del') {
@@ -272,13 +301,14 @@ const PaymentView: React.FC<{
 
             <div className="flex-grow flex flex-col md:flex-row md:gap-8 justify-between">
                 <div className="flex-grow flex items-center justify-center text-center p-4">
-                     <p className="text-5xl font-mono font-bold tracking-tight text-gray-800 break-all sm:text-6xl">
+                     <div><p className="text-5xl font-mono font-bold tracking-tight text-gray-800 break-all sm:text-6xl">
                         {parseInt(amount || '0').toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                         <span className="text-3xl ml-2 font-sans font-medium">{unit}</span>
-                     </p>
+                     </p>{Object.keys(cart).length > 0 && <p className="mt-3 text-sm font-bold text-blue-700">선택 품목 {(Object.values(cart) as number[]).reduce((a,b)=>a+b,0)}개 · <button onClick={clearCart} className="underline">선택 초기화</button></p>}</div>
                 </div>
                 
                 <div className="w-full md:w-72 flex flex-col">
+                    {items.length > 0 && <div className="mb-3 rounded-2xl bg-white p-3 shadow-sm"><div className="mb-2 flex items-center justify-between"><p className="text-xs font-black text-gray-700">등록 품목</p><span className="text-[10px] text-gray-400">눌러서 합계 입력</span></div><div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto">{items.map(item => <button key={item.id} onClick={() => addItem(item)} className="rounded-xl border border-blue-100 bg-blue-50 p-2 text-left hover:border-blue-400"><span className="block truncate text-xs font-black text-gray-800">{item.name}</span><span className="text-[11px] font-bold text-blue-700">{item.price.toLocaleString()}{unit}{cart[item.id] ? ` × ${cart[item.id]}` : ''}</span></button>)}</div></div>}
                     <div className="grid grid-cols-3 gap-2 mb-2">
                         <KeypadButton value="1" />
                         <KeypadButton value="2" />
@@ -305,6 +335,20 @@ const PaymentView: React.FC<{
             </div>
         </div>
     );
+};
+
+const ItemManagementView: React.FC<{ teacherId: string; items: MartItem[]; refresh: () => Promise<void>; unit: string }> = ({ teacherId, items, refresh, unit }) => {
+    const [name, setName] = useState(''); const [price, setPrice] = useState(''); const [category, setCategory] = useState('학용품');
+    const [busy, setBusy] = useState(false); const [message, setMessage] = useState<{type:'success'|'error';text:string}|null>(null);
+    const add = async () => { if (!name.trim() || Number(price) <= 0) { setMessage({type:'error',text:'상품명과 0보다 큰 가격을 입력해주세요.'}); return; } setBusy(true); try { await api.addMartItem(teacherId,{name,price:Number(price),category}); setName('');setPrice('');await refresh();setMessage({type:'success',text:'품목을 등록했습니다.'}); } catch(e:any){setMessage({type:'error',text:e.message||'등록하지 못했습니다.'});} finally{setBusy(false);} };
+    const toggle = async (item: MartItem) => { await api.updateMartItem(item.id,{is_active:!item.is_active}); await refresh(); };
+    const remove = async (item: MartItem) => { if (!window.confirm(`'${item.name}' 품목을 삭제할까요?`)) return; await api.deleteMartItem(item.id); await refresh(); };
+    return <div className="space-y-5 p-4 md:p-6">
+        <OverviewCards items={[{label:'등록 품목',value:`${items.length}개`},{label:'판매 중',value:`${items.filter(i=>i.is_active).length}개`,color:'text-emerald-600'},{label:'평균 가격',value:`${Math.round(items.reduce((s,i)=>s+i.price,0)/Math.max(1,items.length)).toLocaleString()}${unit}`,color:'text-blue-600'},{label:'분류',value:`${new Set(items.map(i=>i.category)).size}개`}]} />
+        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-black text-gray-900">새 품목 추가</h2><div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]"><input value={name} onChange={e=>setName(e.target.value)} placeholder="상품명" className="rounded-xl border p-3"/><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder={`가격 (${unit})`} className="rounded-xl border p-3"/><input value={category} onChange={e=>setCategory(e.target.value)} placeholder="분류" className="rounded-xl border p-3"/><button disabled={busy} onClick={add} className="rounded-xl bg-[#2B548F] px-6 py-3 font-black text-white disabled:opacity-50">추가</button></div></section>
+        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-black text-gray-900">품목 목록</h2><div className="space-y-2">{items.map(item=><div key={item.id} className={`flex items-center justify-between gap-4 rounded-xl border p-4 ${item.is_active?'border-gray-200':'border-gray-100 bg-gray-50 opacity-60'}`}><div><p className="font-black text-gray-900">{item.name}</p><p className="text-xs text-gray-500">{item.category} · {item.price.toLocaleString()}{unit}</p></div><div className="flex gap-2"><button onClick={()=>toggle(item)} className={`rounded-lg px-3 py-2 text-xs font-black ${item.is_active?'bg-emerald-50 text-emerald-700':'bg-gray-200 text-gray-600'}`}>{item.is_active?'판매 중':'숨김'}</button><button onClick={()=>remove(item)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-600">삭제</button></div></div>)}{!items.length&&<p className="py-8 text-center text-gray-400">등록된 품목이 없습니다.</p>}</div></section>
+        {message&&<MessageModal isOpen type={message.type} message={message.text} onClose={()=>setMessage(null)}/>} 
+    </div>;
 };
 
 const TransferView: React.FC<{ martAccount: Account, refreshAccount: () => void }> = ({ martAccount, refreshAccount }) => {

@@ -928,32 +928,25 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
                             return (
                               <div
                                 key={badge.id}
-                                className={`bg-white p-4 rounded-2xl border flex flex-col items-center text-center justify-between shadow-sm transition-all relative group h-36 ${
-                                  isUnlocked ? 'border-amber-200 bg-white' : 'border-gray-100 opacity-60'
+                                className={`bg-white p-4 rounded-2xl border-2 flex flex-col items-center text-center justify-between transition-all relative group h-36 ${
+                                  isUnlocked ? 'border-amber-400 bg-amber-50/40 shadow-lg shadow-amber-100 ring-2 ring-amber-200' : 'border-gray-200 bg-white opacity-80 shadow-sm'
                                 }`}
                               >
+                                {isUnlocked && <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-black text-white shadow">✓</span>}
                                 {/* 배지 이미지/아이콘 */}
                                 <div className="relative w-16 h-16 flex items-center justify-center mb-2">
-                                  {isUnlocked ? (
-                                    <BadgeImage
-                                      id={badge.id}
-                                      name={badge.name}
-                                      icon={badge.icon}
-                                      className="w-16 h-16 object-contain text-4xl flex items-center justify-center"
-                                    />
-                                  ) : (
-                                    <div className="relative">
-                                      <span className="text-4xl filter grayscale contrast-50 opacity-40">{badge.icon}</span>
-                                      <div className="absolute inset-0 flex items-center justify-center bg-gray-950/20 rounded-full">
-                                        <span className="text-sm">🔒</span>
-                                      </div>
-                                    </div>
-                                  )}
+                                  <BadgeImage
+                                    id={badge.id}
+                                    name={badge.name}
+                                    icon={badge.icon}
+                                    className={`w-16 h-16 object-contain text-4xl flex items-center justify-center ${isUnlocked ? '' : 'grayscale opacity-55'}`}
+                                  />
                                 </div>
 
                                 <span className={`text-xs font-black ${isUnlocked ? 'text-gray-900' : 'text-gray-400'}`}>
                                   {badge.name}
                                 </span>
+                                <span className={`text-[9px] font-black ${isUnlocked ? 'text-emerald-600' : 'text-gray-400'}`}>{isUnlocked ? '획득 완료' : '도전 대기'}</span>
 
                                 {/* 마우스 호버 시 설명 툴팁 */}
                                 <div className="absolute bottom-full mb-2 hidden group-hover:block w-48 p-3 bg-gray-950 text-white text-[10px] font-bold rounded-lg shadow-lg z-20 pointer-events-none leading-relaxed text-center">

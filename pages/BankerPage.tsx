@@ -4,12 +4,15 @@ import { api } from '../services/api';
 import { Account, StockProduct, StockProductWithDetails, User, Role, SavingsProduct, StockHistory } from '../types';
 import { LogoutIcon, StockIcon, XIcon, PlusIcon, CheckIcon, ErrorIcon, TransferIcon, NewPiggyBankIcon, ArrowDownIcon, ArrowUpIcon } from '../components/icons';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { FeatureGuide, MiniBars, OverviewCards } from '../components/FeatureGuide';
 
 type View = 'deposit_withdraw' | 'stock_exchange' | 'savings_management';
 
 const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => {
     const { currentUser, logout } = useContext(AuthContext);
-    const [view, setView] = useState<View>('deposit_withdraw');
+    const bankerViewKey = `class_bank_banker_view_${currentUser?.userId || 'unknown'}`;
+    const [view, setViewState] = useState<View>(() => (localStorage.getItem(bankerViewKey) as View) || 'deposit_withdraw');
+    const setView = (next: View) => { setViewState(next); localStorage.setItem(bankerViewKey, next); };
 
     const handleLogout = onBackToMenu || logout;
 
@@ -61,6 +64,7 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
                 </header>
 
                 <main className="flex-grow overflow-y-auto p-4 bg-[#D1D3D8]">
+                    <div className="mb-4 flex justify-end"><FeatureGuide title="은행원 모드 사용 안내" items={view === 'deposit_withdraw' ? [{title:'학생을 선택해요',description:'학생을 선택하면 현재 잔액과 입출금 화면이 열립니다.'},{title:'입금·출금을 처리해요',description:'실제 교실에서 받은 현금과 일치하는지 확인하고 처리합니다.'},{title:'결과를 확인해요',description:'완료 메시지와 변경된 잔액을 확인합니다.'}] : view === 'stock_exchange' ? [{title:'종목을 관리해요',description:'학급 주식 종목과 현재 가격을 설정합니다.'},{title:'변동을 확인해요',description:'가격 그래프와 보유 학생을 확인합니다.'},{title:'변경을 기록해요',description:'가격 변경은 학생의 평가 자산에 바로 반영됩니다.'}] : [{title:'상품을 만들어요',description:'만기, 이자율과 가입 한도를 정해 예금 상품을 등록합니다.'},{title:'가입 현황을 봐요',description:'상단 차트와 상품을 눌러 가입 학생과 예치액을 확인합니다.'},{title:'상품을 정리해요',description:'가입자가 있는 상품은 삭제 전 영향을 확인합니다.'}]} /></div>
                     {renderView()}
                 </main>
 
@@ -623,6 +627,7 @@ const SavingsManagementView: React.FC = () => {
     const [selectedProduct, setSelectedProduct] = useState<SavingsProduct | null>(null);
     const [deleteMode, setDeleteMode] = useState(false);
     const [productsToDelete, setProductsToDelete] = useState<string[]>([]);
+    const [enrolleeStats, setEnrolleeStats] = useState<Record<string,{count:number;amount:number}>>({});
     
     const fetchProducts = useCallback(async () => {
         setLoading(true);
@@ -641,6 +646,13 @@ const SavingsManagementView: React.FC = () => {
         fetchProducts();
     }, [fetchProducts]);
 
+    useEffect(() => {
+        Promise.all(products.map(async product => {
+            const rows = await api.getSavingsEnrollees(product.id);
+            return [product.id, { count: rows.length, amount: rows.reduce((sum,row)=>sum+Number(row.amount||0),0) }] as const;
+        })).then(rows => setEnrolleeStats(Object.fromEntries(rows))).catch(error => console.error('Failed to load savings overview', error));
+    }, [products]);
+
     const handleSelectForDelete = (productId: string) => {
         setProductsToDelete(prev => 
             prev.includes(productId) ? prev.filter(id => id !== productId) : [...prev, productId]
@@ -656,6 +668,7 @@ const SavingsManagementView: React.FC = () => {
 
     return (
         <div>
+            <div className="mb-4 space-y-3"><OverviewCards items={[{label:'예금 상품',value:`${products.length}개`},{label:'가입 건수',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.count,0)}건`,color:'text-blue-600'},{label:'총 예치액',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.amount,0).toLocaleString()}${unit}`,color:'text-emerald-600'},{label:'평균 만기',value:`${Math.round(products.reduce((s,p)=>s+p.maturityDays,0)/Math.max(1,products.length))}일`}]} /><MiniBars title="상품별 가입 학생" rows={products.map(p=>({label:p.name,value:enrolleeStats[p.id]?.count||0,display:`${enrolleeStats[p.id]?.count||0}명 · ${(enrolleeStats[p.id]?.amount||0).toLocaleString()}${unit}`}))} color="bg-emerald-500" /></div>
             <div className="flex justify-end items-center mb-4 gap-2">
                 <button onClick={() => setShowModal('add')} className="px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg shadow hover:bg-green-700">예금 추가</button>
                 <button onClick={() => {
