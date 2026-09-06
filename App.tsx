@@ -141,8 +141,12 @@ const AppContent: React.FC = () => {
 
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [restoringSession, setRestoringSession] = useState(() => Boolean(localStorage.getItem(sessionKey) || sessionStorage.getItem(sessionKey)));
+  const snapshotKey = `${sessionKey}_snapshot`;
+  const readSnapshot = (): User | null => {
+      try { const value = localStorage.getItem(snapshotKey); const parsed = value ? JSON.parse(value) : null; return parsed?.userId && parsed?.role ? parsed : null; } catch { return null; }
+  };
+  const [currentUser, setCurrentUser] = useState<User | null>(() => readSnapshot());
+  const [restoringSession, setRestoringSession] = useState(() => !readSnapshot() && Boolean(localStorage.getItem(sessionKey) || sessionStorage.getItem(sessionKey)));
 
   // Auto-login on mount (session-based to allow clean login when reopening browser)
   useEffect(() => {
@@ -152,18 +156,22 @@ const App: React.FC = () => {
             if (user) {
                 setCurrentUser(user);
                 localStorage.setItem(sessionKey, user.userId);
+                localStorage.setItem(snapshotKey, JSON.stringify(user));
             } else {
                 localStorage.removeItem(sessionKey);
+                localStorage.removeItem(snapshotKey);
                 localStorage.removeItem('class_bank_is_guest');
                 sessionStorage.removeItem(sessionKey);
                 sessionStorage.removeItem('class_bank_is_guest');
             }
         }).catch(err => {
             console.error("Auto login failed", err);
-            localStorage.removeItem(sessionKey);
-            localStorage.removeItem('class_bank_is_guest');
-            sessionStorage.removeItem(sessionKey);
-            sessionStorage.removeItem('class_bank_is_guest');
+            // A temporary network failure after returning to a background tab must not
+            // throw the user back to the first screen. Keep the verified local snapshot.
+            if (!readSnapshot()) {
+                localStorage.removeItem(sessionKey);
+                sessionStorage.removeItem(sessionKey);
+            }
         }).finally(() => setRestoringSession(false));
     } else setRestoringSession(false);
   }, []);
@@ -174,6 +182,7 @@ const App: React.FC = () => {
         // Keep the signed-in user across background tab disposal and browser restarts.
         localStorage.setItem(sessionKey, user.userId);
         sessionStorage.setItem(sessionKey, user.userId);
+        localStorage.setItem(snapshotKey, JSON.stringify(user));
         localStorage.removeItem('class_bank_is_guest');
         setCurrentUser(user);
     },
@@ -184,6 +193,7 @@ const App: React.FC = () => {
         
         // 세션 및 로컬 스토리지 완벽히 비우기
         localStorage.removeItem(sessionKey);
+        localStorage.removeItem(snapshotKey);
         localStorage.removeItem('class_bank_is_guest');
         sessionStorage.removeItem(sessionKey);
         sessionStorage.removeItem('class_bank_is_guest');
@@ -202,12 +212,12 @@ const App: React.FC = () => {
 
   return (
     <AuthContext.Provider value={authContextValue}>
-      <div className="min-h-screen bg-gray-100 md:p-4 flex flex-col justify-center items-center">
+      <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#dbeafe_0,transparent_42%),#eef3f9] md:p-4 flex flex-col justify-center items-center">
         {isDemo && <div className="w-full md:max-w-5xl bg-amber-100 text-amber-950 px-4 py-2 text-sm flex justify-between items-center gap-3" role="status">
           <span>가상 학급 · 실제 계좌와 연결되지 않음</span>
           <button className="font-bold underline shrink-0" onClick={() => { sessionStorage.removeItem(sessionKey); setCurrentUser(null); }}>계정 선택</button>
         </div>}
-        <div className="w-full h-screen md:max-w-5xl md:h-[calc(100vh-2rem)] md:max-h-[900px] bg-white md:rounded-2xl shadow-lg overflow-hidden flex flex-col">
+        <div className="w-full h-full md:max-w-6xl md:h-[calc(100vh-2rem)] bg-white md:rounded-[28px] shadow-xl overflow-hidden flex flex-col">
           {restoringSession ? <div className="flex h-full flex-col items-center justify-center gap-4 text-gray-600"><div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600"/><p className="font-bold">이전 화면을 복원하는 중...</p></div> : <AppContent />}
         </div>
       </div>
