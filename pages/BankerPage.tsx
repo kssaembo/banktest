@@ -1,3 +1,4 @@
+import StudentAssetBars from '../components/StudentAssetBars';
 import { TeacherExchangeArtwork, TeacherStocksArtwork, TeacherSavingsArtwork } from '../components/TeacherMenuArtwork';
 import React, { useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
@@ -150,7 +151,7 @@ const DepositWithdrawView: React.FC = () => {
                     </tbody>
                 </table>
             </div>
-            <div className="border-t bg-slate-50 p-5"><h3 className="mb-4 font-black text-slate-800">학생별 자산 구성</h3><div className="overflow-x-auto"><div className="flex min-w-max items-end gap-5 pb-3">{students.map(student=>{const d=assetDetails[student.userId]||{cash:0,savings:0,stocks:0};const max=Math.max(1,...(Object.values(assetDetails) as {cash:number;savings:number;stocks:number}[]).map(x=>x.cash+x.savings+x.stocks));return <button key={student.userId} onClick={()=>setAssetStudent(student)} className="group w-24"><div className="flex h-44 items-end justify-center gap-1 rounded-2xl bg-white p-2 shadow-sm"><i className="w-5 rounded-t bg-blue-700" style={{height:`${Math.max(4,(d.cash+d.savings+d.stocks)/max*100)}%`}} title="전체 자산"/><i className="w-5 rounded-t bg-emerald-500" style={{height:`${Math.max(4,d.cash/max*100)}%`}} title="현금"/><i className="w-5 rounded-t bg-amber-400" style={{height:`${Math.max(4,(d.savings+d.stocks)/max*100)}%`}} title="예금/주식"/></div><span className="mt-2 block truncate text-xs font-black text-slate-600 group-hover:text-blue-600">{student.name}</span></button>})}</div></div><p className="mt-2 text-[11px] font-bold text-slate-500">■ 전체 자산　<span className="text-emerald-600">■ 현금</span>　<span className="text-amber-500">■ 예금/주식</span></p></div>
+            <StudentAssetBars students={students} assets={assetDetails} unit={unit} onSelect={id=>setAssetStudent(students.find(s=>s.userId===id)||null)}/>
             {selectedStudent && mode && (
                 <TransactionModal student={selectedStudent} mode={mode} onClose={() => { setSelectedStudent(null); setMode(null); }} onComplete={handleTxnComplete} unit={unit} />
             )}
@@ -354,7 +355,7 @@ const StockExchangeView: React.FC = () => {
                 </button>
                  {deleteMode && <button onClick={() => { setDeleteMode(false); setStocksToDelete([]); }} className="text-xs text-gray-600">취소</button>}</div>
             </div>
-            <div className="mb-5 grid gap-4 lg:grid-cols-2"><VerticalBars title="종목별 총 가입 금액" unit={unit} data={stocks.map(s=>({name:s.name,value:Number(s.valuation||0),details:(stockHolders[s.id]||[]).map(h=>h.studentName)}))} onSelect={item=>{const stock=stocks.find(s=>s.name===item.name);if(stock)handleOpenHoldersModal(stock);}}/><DonutCard title="전체 주식 투자 비율" centerLabel={unit} data={stocks.map(s=>({name:s.name,value:Number(s.valuation||0),details:(stockHolders[s.id]||[]).map(h=>h.studentName)}))} onSelect={item=>{const stock=stocks.find(s=>s.name===item.name);if(stock)handleOpenHoldersModal(stock);}}/></div>
+            <div className="mb-5 grid gap-4 lg:grid-cols-2"><VerticalBars metric="평가 금액" title="종목별 총 평가 금액" unit={unit} data={stocks.map(s=>({name:s.name,value:Number(s.valuation||0),details:(stockHolders[s.id]||[]).map(h=>h.studentName)}))} onSelect={item=>{const stock=stocks.find(s=>s.name===item.name);if(stock)handleOpenHoldersModal(stock);}}/><DonutCard title="전체 주식 투자 비율" centerLabel={unit} data={stocks.map(s=>({name:s.name,value:Number(s.valuation||0),details:(stockHolders[s.id]||[]).map(h=>h.studentName)}))} onSelect={item=>{const stock=stocks.find(s=>s.name===item.name);if(stock)handleOpenHoldersModal(stock);}}/></div>
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
                  <table className="w-full text-sm">
                     <thead className="bg-gray-50">
@@ -398,7 +399,7 @@ const StockExchangeView: React.FC = () => {
                                                         <LineChart data={chartData}>
                                                             <XAxis dataKey="createdAt" tickFormatter={(time) => new Date(time).toLocaleDateString()} hide />
                                                             <YAxis domain={['auto', 'auto']} />
-                                                            <Tooltip 
+                                                            <Tooltip cursor={false} wrapperStyle={{zIndex:30}} 
                                                                 labelFormatter={(label) => new Date(label).toLocaleString()}
                                                                 formatter={(value: number) => [`${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}`, '가격']}
                                                             />
@@ -681,7 +682,7 @@ const SavingsManagementView: React.FC = () => {
         <div>
             <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-black text-slate-800">예금 관리</h2><FeatureGuide title="예금 관리 사용 안내" label="예금 관리 사용 안내" items={[{title:'상품을 만들어요',description:'만기와 이율, 가입 한도를 정합니다.'},{title:'가입 현황을 봐요',description:'그래프를 눌러 상품별 가입자를 확인합니다.'}]}/></div>
             <div className="mb-4"><OverviewCards items={[{label:'예금 상품',value:`${products.length}개`},{label:'가입 건수',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.count,0)}건`,color:'text-blue-600'},{label:'총 예치액',value:`${(Object.values(enrolleeStats) as {count:number;amount:number}[]).reduce((s,v)=>s+v.amount,0).toLocaleString()}${unit}`,color:'text-emerald-600'},{label:'평균 만기',value:`${Math.round(products.reduce((s,p)=>s+p.maturityDays,0)/Math.max(1,products.length))}일`}]} /></div>
-            <div className="mb-5 grid gap-4 lg:grid-cols-2"><VerticalBars title="상품별 가입 금액" unit={unit} data={products.map(p=>({name:p.name,value:enrolleeStats[p.id]?.amount||0,details:(enrolleeRows[p.id]||[]).map(r=>r.studentName)}))} onSelect={item=>{const p=products.find(product=>product.name===item.name);if(p)handleOpenEnrolleesModal(p);}}/><DonutCard title="전체 예금 가입액 비율" centerLabel={unit} data={products.map(p=>({name:p.name,value:enrolleeStats[p.id]?.amount||0,details:(enrolleeRows[p.id]||[]).map(r=>r.studentName)}))} onSelect={item=>{const p=products.find(product=>product.name===item.name);if(p)handleOpenEnrolleesModal(p);}}/></div>
+            <div className="mb-5 grid gap-4 lg:grid-cols-2"><VerticalBars metric="예치액" title="상품별 가입 금액" unit={unit} data={products.map(p=>({name:p.name,value:enrolleeStats[p.id]?.amount||0,details:(enrolleeRows[p.id]||[]).map(r=>r.studentName)}))} onSelect={item=>{const p=products.find(product=>product.name===item.name);if(p)handleOpenEnrolleesModal(p);}}/><DonutCard title="전체 예금 가입액 비율" centerLabel={unit} data={products.map(p=>({name:p.name,value:enrolleeStats[p.id]?.amount||0,details:(enrolleeRows[p.id]||[]).map(r=>r.studentName)}))} onSelect={item=>{const p=products.find(product=>product.name===item.name);if(p)handleOpenEnrolleesModal(p);}}/></div>
             <div className="flex justify-end items-center mb-4 gap-2">
                 <button onClick={() => setShowModal('add')} className="px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg shadow hover:bg-green-700">예금 추가</button>
                 <button onClick={() => {

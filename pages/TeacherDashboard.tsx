@@ -1,3 +1,4 @@
+import {RewardSettingsButton} from '../components/LearningRewards';
 import {playSound} from '../services/sounds';
 import { TeacherDashboardArtwork, TeacherStudentsArtwork, TeacherJobsArtwork, TeacherTaxArtwork, TeacherFundsArtwork, TeacherDonationsArtwork, TeacherStocksArtwork } from '../components/TeacherMenuArtwork';
 import { dailyActivity } from '../services/activityStats';
@@ -1024,7 +1025,7 @@ return dailyActivity(transactions);
     };
 
     return (
-        <div className="space-y-6">
+        <div className="dashboard-content space-y-5">
              <div className="flex flex-wrap justify-end gap-2"><button onClick={()=>setCsvDialog(true)} className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-black text-emerald-700">CSV 다운로드</button><button onClick={exportBackup} disabled={exporting} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-black text-white disabled:opacity-50">{exporting?'백업 준비 중...':'전체 백업'}</button></div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* 선생님 지갑 박스: 가로 2배 (md:col-span-2) */}
@@ -1050,7 +1051,7 @@ return dailyActivity(transactions);
                                 </button>
                             </div>
                         </div>
-                        <p className="text-xs text-blue-200 mt-4 flex items-center">내역 보기 <span className="ml-1">→</span><img src="/design/hero-wallet.png" alt="" className="pointer-events-none ml-auto h-10 w-12 object-contain"/></p>
+                        <div className="text-xs text-blue-200 mt-4 flex flex-wrap gap-2 items-center">내역 보기 <span className="ml-1">→</span><RewardSettingsButton teacherId={currentUser!.userId} unit={unit}/></div>
                     </div>
                     
                 </div>
@@ -1176,7 +1177,7 @@ return dailyActivity(transactions);
                                  </div>
                              </li>
                          ))}
-                         {teacherTransactions.length === 0 && <li className="p-8 text-center text-gray-400"><img src="/design/empty-transactions.png" alt="" className="mx-auto h-24 object-contain"/><span>거래 내역이 없습니다.</span></li>}
+                         {teacherTransactions.length === 0 && <li className="flex items-center justify-center gap-3 p-4 text-center text-gray-400"><img src="/design/empty-transactions.png" alt="" className="h-12 object-contain"/><span>거래 내역이 없습니다.</span></li>}
                      </ul>
                      {teacherTransactions.length > visibleTeacherTxns && (
                          <button 
@@ -1248,7 +1249,7 @@ return dailyActivity(transactions);
              {showMartModal && <MartTransferModal onClose={() => setShowMartModal(false)} onComplete={handleIssueComplete} />}
              
              {/* 계정 삭제 버튼 */}
-             <div className="flex justify-end pt-8">
+             <div className="flex justify-end pt-2">
                 <button 
                     onClick={() => setShowDeleteModal(true)}
                     className="text-[10px] text-gray-300 hover:text-red-400 transition-colors flex items-center gap-1"

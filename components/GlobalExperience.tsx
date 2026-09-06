@@ -1,3 +1,4 @@
+import {RewardAnimation} from './LearningRewards';
 import React, { useEffect, useState } from 'react';
 
 import {SOUND_KEY,playSound,playButtonSound,stopSounds} from '../services/sounds';
@@ -10,14 +11,14 @@ export default function GlobalExperience({ children }: { children: React.ReactNo
     const originalAlert = window.alert;
     window.alert = value => {setMessage(String(value)); if(/오류|실패|입력|불가|부족|최대|확인해/.test(String(value)))playSound('error-soft');};
     const onClick = (event: MouseEvent) => {
-      const button=(event.target as HTMLElement|null)?.closest('button,[role="button"]') as HTMLButtonElement|null;
+      const button=(event.target instanceof Element ? event.target : null)?.closest('button,[role="button"],a[href],input[type="submit"]') as HTMLButtonElement|null;
       if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;
-      const cue=button.dataset.sfx;if(cue==='news-open'){playSound('news-open');return;}
-      const text=button.textContent||'';
-      playButtonSound(button.closest('nav')?'navigation':/닫기|취소|뒤로|로그아웃/.test(text)?'dismiss':/송금|결제|가입|납부|발행|등록|저장/.test(text)?'action':'default');
+      const cue=button.dataset.sfx;if(cue==='custom')return;if(cue==='news-open'){playSound('news-open');return;}
+      const text=[button.textContent,button.getAttribute('aria-label'),button.title].filter(Boolean).join(' ');
+      playButtonSound(button.closest('nav,aside')||/메뉴|관리자|마트모드|학생 페이지|가이드/.test(text)?'navigation':/닫기|취소|뒤로|로그아웃/.test(text)?'dismiss':/송금|결제|가입|납부|발행|등록|저장|확인|투자|매수|매도|시작|다음|완료/.test(text)?'action':'default');
     };
-    document.addEventListener('click', onClick, true);
-    return () => { window.alert = originalAlert; document.removeEventListener('click', onClick, true); };
+    window.addEventListener('click', onClick, true);
+    return () => { window.alert = originalAlert; window.removeEventListener('click', onClick, true); };
   }, []);
 
   const toggleSound = () => {
@@ -28,7 +29,7 @@ export default function GlobalExperience({ children }: { children: React.ReactNo
   };
 
   return <>
-    {children}
+    {children}<RewardAnimation/>
     <button type="button" onClick={toggleSound} aria-label={soundEnabled ? '버튼 효과음 끄기' : '버튼 효과음 켜기'} title={soundEnabled ? '효과음 켜짐' : '효과음 꺼짐'} className="fixed right-4 bottom-20 md:bottom-4 z-[240] w-11 h-11 rounded-full bg-white/95 border border-blue-100 shadow-lg text-xl hover:bg-blue-50 active:scale-95">
       {soundEnabled ? '🔊' : '🔇'}
     </button>

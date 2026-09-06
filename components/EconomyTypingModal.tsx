@@ -1,8 +1,10 @@
+import {syncTypingBadges} from '../services/learningAddons';
 import {playSound} from '../services/sounds';
 import React, { useState, useEffect, useRef } from 'react';
 import { XIcon, BackIcon } from './icons';
 
 interface EconomyTypingModalProps {
+  userId?: string;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -289,7 +291,7 @@ const BadgeImage: React.FC<{ id: string; name: string; icon: string; className?:
   );
 };
 
-export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, onClose }) => {
+export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, onClose, userId }) => {
   // 화면 모드: 'menu' | 'practice' | 'result'
   const [mode, setMode] = useState<'menu' | 'practice' | 'result'>('menu');
   // 연습 타겟 등급: 'coin' | 'banknote' | 'jewel' | null
@@ -339,22 +341,23 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
   // 현재 활성화된 탭 ('practice' | 'collection')
   const [activeTab, setActiveTab] = useState<'practice' | 'collection'>('practice');
 
-  // 로컬 스토리지에서 획득한 배지 목록 및 이름 불러오기
-  useEffect(() => {
-    const saved = localStorage.getItem('unlocked_economy_badges');
-    if (saved) {
-      try {
-        setUnlockedBadges(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    const savedName = localStorage.getItem('economy_earner_name');
-    if (savedName) {
-      setEarnerName(savedName);
-      setIsNameLocked(true);
-    }
-  }, [isOpen]);
+  const badgeKey=`classbank-typing-badges:${userId||'guest'}`;
+  const [syncStatus,setSyncStatus]=useState('');
+  const [legacyAvailable,setLegacyAvailable]=useState(false);
+  const cleanBadges=(raw:unknown):string[]=>Array.isArray(raw)?raw.filter((x):x is string=>typeof x==='string'&&BADGES.some(b=>b.id===x)):[];
+  const readLocal=()=>{try{return cleanBadges(JSON.parse(localStorage.getItem(badgeKey)||'[]'));}catch{return [];}};
+  useEffect(()=>{
+    if(!isOpen)return;let alive=true;const cached=readLocal();setUnlockedBadges(cached);
+    setLegacyAvailable(!!userId&&!!localStorage.getItem('unlocked_economy_badges')&&!localStorage.getItem('classbank-legacy-badges-owner'));
+    const synchronize=async()=>{if(!userId){setSyncStatus('학생을 선택하면 기기 간 배지 동기화를 사용할 수 있어요.');return;}setSyncStatus('배지 동기화 중…');try{const merged=await syncTypingBadges(userId,readLocal());if(alive){const combined=Array.from(new Set([...readLocal(),...cleanBadges(merged)]));localStorage.setItem(badgeKey,JSON.stringify(combined));setUnlockedBadges(combined);setSyncStatus('배지가 동기화됐어요.');}}catch(e:any){if(alive)setSyncStatus(`이 기기에 저장됨 · ${e.message}`);}};
+    void synchronize();window.addEventListener('online',synchronize);
+    const savedName=localStorage.getItem(`economy-earner-name:${userId||'guest'}`)||'';setEarnerName(savedName);setIsNameLocked(!!savedName);
+    return()=>{alive=false;window.removeEventListener('online',synchronize);};
+  },[isOpen,userId]);
+  const importLegacy=async()=>{
+    if(!userId||!window.confirm('이 기기의 기존 배지가 현재 선택한 학생의 배지가 맞나요? 확인하면 이 학생에게만 가져옵니다.'))return;
+    try{const legacy=cleanBadges(JSON.parse(localStorage.getItem('unlocked_economy_badges')||'[]'));const merged=await syncTypingBadges(userId,Array.from(new Set([...readLocal(),...legacy])));localStorage.setItem(badgeKey,JSON.stringify(merged));localStorage.setItem('classbank-legacy-badges-owner',userId);setUnlockedBadges(merged);setLegacyAvailable(false);setSyncStatus('기존 배지를 가져와 동기화했습니다.');}catch(e:any){setSyncStatus(e.message);}
+  };
 
   // 이름 등록 및 로컬스토리지 저장
   const handleLockName = (name: string) => {
@@ -364,7 +367,7 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
     }
     setEarnerName(name);
     setIsNameLocked(true);
-    localStorage.setItem('economy_earner_name', name);
+    localStorage.setItem(`economy-earner-name:${userId||'guest'}`, name);
   };
 
   // 모달 제어
@@ -610,7 +613,8 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
     // 배지 로컬 스토리지 누적 저장
     const updated = Array.from(new Set([...unlockedBadges, targetBadge.id]));
     setUnlockedBadges(updated);
-    localStorage.setItem('unlocked_economy_badges', JSON.stringify(updated));
+    localStorage.setItem(badgeKey, JSON.stringify(updated));
+    if(userId)void syncTypingBadges(userId,updated).then(merged=>{const combined=Array.from(new Set([...updated,...merged]));localStorage.setItem(badgeKey,JSON.stringify(combined));setUnlockedBadges(combined);setSyncStatus('새 배지가 서버에 저장됐어요.');}).catch(e=>setSyncStatus(`이 기기에 저장됨 · ${e.message}`));
 
     // 배지 획득 날짜 기입
     const today = new Date();
@@ -905,10 +909,10 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
                 <div className="space-y-8 animate-fadeIn">
                   <div className="bg-white p-6 rounded-[32px] border border-amber-100 flex items-center justify-between shadow-sm">
                     <div>
-                      <h3 className="font-black text-lg text-gray-950 mb-1">내 경제 배지 컬렉션 🏅</h3>
+                      <h3 className="font-black text-lg text-gray-950 mb-1">내 경제 배지 컬렉션 🏅</h3>{legacyAvailable&&<button onClick={importLegacy} className="my-2 rounded-xl bg-blue-100 px-3 py-2 text-xs font-bold text-blue-800">이 기기의 기존 배지 가져오기</button>}
                       <p className="text-xs text-gray-500 font-bold">자판 연습을 완료하고 30종의 모든 배지를 수집해 보세요.</p>
                       <p className="text-[11px] text-rose-500 font-bold mt-1.5 leading-relaxed">
-                        ※ 배지 컬렉션 정보는 동일한 기기 안에서만 정보가 보입니다. 배지를 다운로드 해서 보관해주세요.
+                        {syncStatus}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1041,7 +1045,7 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
 
                       return (
                         <span key={index} aria-label={char === ' ' ? '띄어쓰기' : undefined} className={`${charColor} ${bgClass} ${char === ' ' ? 'mx-0.5 min-w-[0.9em] rounded bg-slate-100 text-slate-400' : 'px-0.5'} inline-block transition-colors font-mono`}>
-                          {char === ' ' ? '·' : char}
+                          {char === ' ' ? '\u00a0' : char}
                         </span>
                       );
                     })}

@@ -1,3 +1,4 @@
+import {playButtonSound} from '../services/sounds';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { XIcon } from './icons';
@@ -716,6 +717,7 @@ export const EconomyTutorialModal: React.FC<EconomyTutorialModalProps> = ({ isOp
   };
 
   const handleBreakObstacle = () => {
+    void playButtonSound('attack');
     let targetX = playerPosition.x;
     let targetY = playerPosition.y;
     if (playerDirection === 'up') targetY -= 1;
@@ -873,6 +875,7 @@ export const EconomyTutorialModal: React.FC<EconomyTutorialModalProps> = ({ isOp
     if (isObstacle(nextPoint, activeObstacles)) return;
 
     setPlayerPosition(nextPoint);
+    void playButtonSound('move');
     setLastObstacleHit(null);
 
     // Puddle check: delay penalty of 2 steps
@@ -943,6 +946,7 @@ export const EconomyTutorialModal: React.FC<EconomyTutorialModalProps> = ({ isOp
 
   // Battle Slash Attack
   const handleAttackMonster = () => {
+    void playButtonSound('attack');
     setDamageEffect(true);
     setTimeout(() => {
       setDamageEffect(false);
@@ -1336,7 +1340,7 @@ export const EconomyTutorialModal: React.FC<EconomyTutorialModalProps> = ({ isOp
                       })()}
 
                       <button
-                        onClick={handleAttackMonster}
+                        data-sfx="custom" onClick={handleAttackMonster}
                         disabled={!virtualInteracted}
                         className={`w-full py-3 text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-2 ${
                           virtualInteracted

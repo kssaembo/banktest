@@ -1,8 +1,9 @@
+import {getMartSales,checkoutWithItems} from '../services/martSales';
 import {playSound} from '../services/sounds';
 import {MartCheckoutArtwork,MartProductsArtwork,MartTransferArtwork,MartDetailsArtwork} from '../components/RoleMenuArtwork';
 
 import { api } from '../services/api';
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { User, Role, Account, Transaction, MartItem } from '../types';
 import { LogoutIcon, StudentIcon, CheckIcon, ErrorIcon, BackIcon, TransferIcon, NewMartIcon, NewHistoryIcon } from '../components/icons';
@@ -21,7 +22,7 @@ const MessageModal: React.FC<{
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm flex flex-col items-center text-center">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md flex flex-col items-center text-center">
                 {type === 'success' ? <CheckIcon className="w-12 h-12 text-green-500 mb-4" /> : <ErrorIcon className="w-12 h-12 text-red-500 mb-4" />}
                 <h3 className={`text-xl font-bold mb-2 ${type === 'success' ? 'text-gray-900' : 'text-red-600'}`}>
                     {type === 'success' ? '성공' : '오류'}
@@ -183,7 +184,7 @@ const PosView: React.FC<{currentUser: User | null; items: MartItem[]}> = ({curre
         setSubView('payment');
     };
 
-    const handlePayment = async () => {
+    const handlePayment = async (cart:Record<string,number>,requestId:string) => {
         if (!selectedStudent?.account || !amount || parseInt(amount) <= 0) {
             setResult({ type: 'error', text: '결제 정보가 올바르지 않습니다.' });
             return;
@@ -195,7 +196,7 @@ const PosView: React.FC<{currentUser: User | null; items: MartItem[]}> = ({curre
             const studentAccId = String(selectedStudent.account.accountId);
             const paymentAmount = parseInt(amount);
             
-            const message = await api.martTransfer(studentAccId, paymentAmount, 'FROM_STUDENT');
+            const message = await checkoutWithItems(selectedStudent.teacher_id||currentUser?.teacher_id||currentUser?.userId||'',studentAccId,paymentAmount,cart,requestId);
             setResult({ type: 'success', text: message });
             fetchStudents();
         } catch (err: any) {
@@ -260,7 +261,7 @@ const PaymentView: React.FC<{
     student: User & { account: Account | null };
     amount: string;
     setAmount: (val: string) => void;
-    onPay: () => void;
+    onPay: (cart:Record<string,number>,requestId:string) => void;
     onBack: () => void;
     loading: boolean;
     unit: string;
@@ -268,6 +269,7 @@ const PaymentView: React.FC<{
 }> = ({ student, amount, setAmount, onPay, onBack, loading, unit, items }) => {
 
     const [cart, setCart] = useState<Record<string, number>>({});
+    const checkoutId=useRef(crypto.randomUUID());
     const addItem = (item: MartItem) => {
         const next = { ...cart, [item.id]: (cart[item.id] || 0) + 1 };
         setCart(next);
@@ -328,7 +330,7 @@ const PaymentView: React.FC<{
                     </div>
                     
                      <button 
-                        onClick={onPay} 
+                        onClick={()=>onPay(cart,checkoutId.current)} 
                         disabled={loading || !amount || parseInt(amount) <= 0}
                         className="w-full mt-2 p-4 bg-green-500 text-white font-bold text-xl rounded-xl shadow-lg disabled:bg-gray-400"
                     >
@@ -342,6 +344,8 @@ const PaymentView: React.FC<{
 
 const ItemManagementView: React.FC<{ teacherId: string; items: MartItem[]; refresh: () => Promise<void>; unit: string }> = ({ teacherId, items, refresh, unit }) => {
     const [name, setName] = useState(''); const [price, setPrice] = useState(''); const [category, setCategory] = useState('학용품');
+    const [sales,setSales]=useState<Record<string,number>>({});const [salesError,setSalesError]=useState('');
+    useEffect(()=>{let alive=true;getMartSales(teacherId).then(v=>{if(alive){setSales(v);setSalesError('');}}).catch(e=>{if(alive)setSalesError(e.message)});return()=>{alive=false};},[teacherId,items]);
     const [busy, setBusy] = useState(false); const [message, setMessage] = useState<{type:'success'|'error';text:string}|null>(null);
     const add = async () => { if (!name.trim() || Number(price) <= 0) { setMessage({type:'error',text:'상품/서비스명과 0보다 큰 가격을 입력해주세요.'}); return; } setBusy(true); try { await api.addMartItem(teacherId,{name,price:Number(price),category}); setName('');setPrice('');await refresh();setMessage({type:'success',text:'상품/서비스을 등록했습니다.'}); } catch(e:any){setMessage({type:'error',text:e.message||'등록하지 못했습니다.'});} finally{setBusy(false);} };
     const toggle = async (item: MartItem) => { await api.updateMartItem(item.id,{is_active:!item.is_active}); await refresh(); };
@@ -349,7 +353,7 @@ const ItemManagementView: React.FC<{ teacherId: string; items: MartItem[]; refre
     return <div className="min-w-0 w-full space-y-5 p-3 md:p-4">
         <OverviewCards items={[{label:'등록 상품/서비스',value:`${items.length}개`},{label:'판매 중',value:`${items.filter(i=>i.is_active).length}개`,color:'text-emerald-600'},{label:'평균 가격',value:`${Math.round(items.reduce((s,i)=>s+i.price,0)/Math.max(1,items.length)).toLocaleString()}${unit}`,color:'text-blue-600'},{label:'분류',value:`${new Set(items.map(i=>i.category)).size}개`}]} />
         <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-black text-gray-900">새 상품/서비스 추가</h2><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem]"><input value={name} onChange={e=>setName(e.target.value)} placeholder="상품/서비스명" className="min-w-0 w-full rounded-xl border p-3"/><input type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder={`가격 (${unit})`} className="min-w-0 w-full rounded-xl border p-3"/><input value={category} onChange={e=>setCategory(e.target.value)} placeholder="분류" className="min-w-0 w-full rounded-xl border p-3"/><button disabled={busy} onClick={add} className="min-w-32 whitespace-nowrap rounded-xl bg-[#2B548F] px-8 py-3 font-black text-white disabled:opacity-50">추가</button></div></section>
-        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-black text-gray-900">상품/서비스 목록</h2><div className="space-y-2">{items.map(item=><div key={item.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${item.is_active?'border-gray-200':'border-gray-100 bg-gray-50 opacity-60'}`}><div className="min-w-0 flex-1 break-words"><p className="font-black text-gray-900">{item.name}</p><p className="text-xs text-gray-500">{item.category} · {item.price.toLocaleString()}{unit}</p></div><div className="flex shrink-0 gap-2"><button onClick={()=>toggle(item)} className={`rounded-lg px-3 py-2 text-xs font-black ${item.is_active?'bg-emerald-50 text-emerald-700':'bg-gray-200 text-gray-600'}`}>{item.is_active?'판매 중':'숨김'}</button><button onClick={()=>remove(item)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-600">삭제</button></div></div>)}{!items.length&&<p className="py-8 text-center text-gray-400">등록된 상품/서비스이 없습니다.</p>}</div></section>
+        <section className="rounded-2xl bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-black text-gray-900">상품/서비스 목록</h2><p className="mb-3 text-xs text-slate-500">{salesError||'판매량은 업데이트 후 상품을 선택해 결제한 수량입니다. 직접 입력 금액과 과거 거래는 제외됩니다.'}</p><div className="space-y-2">{items.map(item=><div key={item.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 ${item.is_active?'border-gray-200':'border-gray-100 bg-gray-50 opacity-60'}`}><div className="min-w-0 flex-1 break-words"><p className="font-black text-gray-900">{item.name}</p><p className="text-xs text-gray-500">{item.category} · {item.price.toLocaleString()}{unit}</p></div><div className="group relative mx-2 min-w-16 flex-1" title={salesError||`누적 판매량: ${(sales[item.id]||0).toLocaleString()}개`}><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-400" style={{width:`${(sales[item.id]||0)/Math.max(1,...(Object.values(sales) as number[]))*100}%`}}/></div><span className="text-[10px] text-slate-500">{salesError?'집계 준비 중':`${sales[item.id]||0}개 판매`}</span></div><div className="flex shrink-0 gap-2"><button onClick={()=>toggle(item)} className={`rounded-lg px-3 py-2 text-xs font-black ${item.is_active?'bg-emerald-50 text-emerald-700':'bg-gray-200 text-gray-600'}`}>{item.is_active?'판매 중':'숨김'}</button><button onClick={()=>remove(item)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-black text-red-600">삭제</button></div></div>)}{!items.length&&<p className="py-8 text-center text-gray-400">등록된 상품/서비스이 없습니다.</p>}</div></section>
         {message&&<MessageModal isOpen type={message.type} message={message.text} onClose={()=>setMessage(null)}/>} 
     </div>;
 };
@@ -371,6 +375,18 @@ const TransferView: React.FC<{ martAccount: Account, refreshAccount: () => void 
         ? (currentUser.teacherAlias.endsWith('은행') ? currentUser.teacherAlias : `${currentUser.teacherAlias}은행`)
         : martAccount.accountId.split(' ').slice(0, -1).join(' ');
 
+    const resolveRecipient=async()=>{
+      for(const candidate of Array.from(new Set([`${bankName} ${accountId.trim()}`,accountId.trim()]))) {
+        const result=await api.getRecipientDetailsByAccountId(candidate);
+        if(result&&result.user.role===Role.STUDENT&&result.account.teacher_id===martAccount.teacher_id)return result;
+      }
+      return null;
+    };
+    const [recipient,setRecipient]=useState('');
+    useEffect(()=>{let alive=true;setRecipient('');if(target!=='student'||!accountId.trim())return;
+      const timer=setTimeout(()=>{setRecipient('계좌 확인 중…');resolveRecipient().then(result=>{if(alive)setRecipient(result&&result.user.role===Role.STUDENT&&result.account.teacher_id===martAccount.teacher_id?`${result.user.name} · ${result.user.grade||''}학년 ${result.user.class||''}반 ${result.user.number||''}번`:'일치하는 학생 계좌가 없습니다.');}).catch(()=>{if(alive)setRecipient('계좌 정보를 확인하지 못했습니다.');});},250);
+      return()=>{alive=false;clearTimeout(timer);};
+    },[accountId,bankName,target,martAccount.teacher_id]);
     const handleTransfer = async () => {
         if (!amount || parseInt(amount) <= 0) {
             setMessageModal({ isOpen: true, type: 'error', text: '금액을 올바르게 입력해주세요.' });
@@ -383,8 +399,10 @@ const TransferView: React.FC<{ martAccount: Account, refreshAccount: () => void 
             let message = '';
             if (target === 'student') {
                 // UI에 표시된 bankName과 동일한 접두사를 사용하여 계좌번호 생성
-                const fullAccountId = `${bankName} ${accountId}`;
-                if (!accountId) throw new Error('계좌번호를 입력해주세요.');
+                if (!accountId.trim()) throw new Error('계좌번호를 입력해주세요.');
+                const recipientDetails=await resolveRecipient();
+                if(!recipientDetails)throw new Error('일치하는 학급 학생 계좌가 없습니다.');
+                const fullAccountId=recipientDetails.account.accountId;
                 message = await api.martTransfer(fullAccountId, parseInt(amount), 'TO_STUDENT');
             } else {
                 if (!currentUser) throw new Error('로그인 정보가 없습니다.');
@@ -434,8 +452,8 @@ const TransferView: React.FC<{ martAccount: Account, refreshAccount: () => void 
                             <label className="font-semibold text-gray-700">받는 학생 계좌번호</label>
                             <div className="flex items-center mt-1">
                                 <span className="p-3 bg-gray-100 border border-r-0 rounded-l-lg text-gray-600 w-2/3 text-center truncate">{bankName}</span>
-                                <input type="text" value={accountId} onChange={e => setAccountId(e.target.value)} placeholder="000000" className="w-1/3 p-3 border rounded-r-lg" />
-                            </div>
+                                <input type="text" value={accountId} onChange={e => setAccountId(e.target.value)} placeholder="060101" className="w-1/3 p-3 border rounded-r-lg" />
+                            </div><p role="status" className="mt-2 text-sm font-bold text-blue-700">{recipient}</p>
                         </div>
                     ) : (
                          <div>
@@ -532,3 +550,4 @@ const DesktopNavButton: React.FC<{ label: string, Icon: React.FC<any>, active: b
 );
 
 export default MartPage;
+

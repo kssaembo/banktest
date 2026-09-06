@@ -724,7 +724,7 @@ const StocksView: React.FC<{ currentUser: User, refreshAccount: () => void, show
                                 <LineChart data={history}>
                                     <XAxis dataKey="createdAt" hide />
                                     <YAxis domain={['auto', 'auto']} hide />
-                                    <Tooltip labelFormatter={() => ''} formatter={(val: number) => [`${val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${unit}`, '가격']} />
+                                    <Tooltip cursor={false} wrapperStyle={{zIndex:30}} labelFormatter={() => ''} formatter={(val: number) => [`${val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${unit}`, '가격']} />
                                     <Line type="monotone" dataKey="price" stroke="#4F46E5" strokeWidth={3} dot={false} />
                                 </LineChart>
                             </ResponsiveContainer>
@@ -1714,7 +1714,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 onClose={() => setShowReadingModal(false)}
             />
 
-            <EconomyTypingModal 
+            <EconomyTypingModal key={effectiveUser.userId} userId={effectiveUser.role===Role.STUDENT?effectiveUser.userId:undefined}
                 isOpen={showTypingModal}
                 onClose={() => setShowTypingModal(false)}
             />

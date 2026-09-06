@@ -138,7 +138,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
         <EconomyReadingModal isOpen={showReadingModal} onClose={() => setShowReadingModal(false)} />
         
         {/* 경제 자판 연습 모달 */}
-        <EconomyTypingModal isOpen={showTypingModal} onClose={() => setShowTypingModal(false)} />
+        <EconomyTypingModal userId={currentUser?.role==='student'?currentUser.userId:undefined} isOpen={showTypingModal} onClose={() => setShowTypingModal(false)} />
         
 
       </div>

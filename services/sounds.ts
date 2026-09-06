@@ -15,17 +15,22 @@ export function playSound(cue:SoundCue){
   audio.currentTime=0;audio.volume=cue==='typing-correct'?.3:.45;active=audio;void audio.play().catch(()=>{});
  }catch{/* Audio never changes an operation's outcome. */}
 }
-export function playButtonSound(group:'default'|'navigation'|'action'|'dismiss'='default'){
+export type ButtonSoundGroup='default'|'navigation'|'action'|'dismiss'|'move'|'attack';
+export async function playButtonSound(group:ButtonSoundGroup='default'){
  if(!enabled())return;
  try{
   const Ctx=window.AudioContext||(window as any).webkitAudioContext;if(!Ctx)return;
-  context??=new Ctx();if(context!.state==='suspended')void context!.resume().catch(()=>{});
-  const ctx=context!,osc=ctx.createOscillator(),gain=ctx.createGain();
-  const [from,to]=group==='navigation'?[580,760]:group==='action'?[470,740]:group==='dismiss'?[520,400]:[520,720];
-  osc.type='sine';osc.frequency.setValueAtTime(from,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(to,ctx.currentTime+.055);
-  gain.gain.setValueAtTime(.035,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.07);
-  osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.075);osc.onended=()=>{osc.disconnect();gain.disconnect()};
- }catch{}
+  if(!context||context.state==='closed')context=new Ctx();
+  const ctx=context!;
+  if(ctx.state!=='running')await ctx.resume();
+  if(!enabled()||ctx.state!=='running')return;
+  const osc=ctx.createOscillator(),gain=ctx.createGain();
+  const tones:Record<ButtonSoundGroup,[number,number]>={default:[520,720],navigation:[580,760],action:[470,740],dismiss:[520,400],move:[260,340],attack:[190,70]};
+  const [from,to]=tones[group],duration=group==='attack'?.14:group==='move'?.045:.085;
+  osc.type=group==='attack'?'triangle':'sine';osc.frequency.setValueAtTime(from,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(to,ctx.currentTime+duration*.8);
+  gain.gain.setValueAtTime(group==='move'?.025:.065,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+duration);
+  osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+duration);osc.onended=()=>{osc.disconnect();gain.disconnect()};
+ }catch{/* Sound failure must never interrupt input. */}
 }
 export function operationCue(method:string):SoundCue|undefined{
  if(method==='payTax')return 'tax-paid';
