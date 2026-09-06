@@ -13,6 +13,9 @@ serve(async (req) => {
 
   try {
     const { keyword } = await req.json()
+    if (typeof keyword !== 'string' || keyword.trim().length < 2 || keyword.length > 80) {
+      throw new Error('검색어는 2자 이상 80자 이하로 입력해주세요.');
+    }
     
     // Fix: Access Deno through globalThis to resolve "Cannot find name 'Deno'" errors in the execution context
     const clientId = (globalThis as any).Deno.env.get("NAVER_CLIENT_ID");
@@ -24,7 +27,7 @@ serve(async (req) => {
 
     // 네이버 뉴스 검색 API 호출 (최신순 20개 요청)
     const response = await fetch(
-      `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(keyword)}&display=20&sort=sim`,
+      `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(keyword.trim())}&display=20&sort=sim`,
       {
         headers: {
           'X-Naver-Client-Id': clientId,

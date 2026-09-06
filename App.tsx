@@ -21,7 +21,15 @@ const AppContent: React.FC = () => {
   const [requestedView, setRequestedView] = useState<string | undefined>(undefined);
   
   // 선생님 계정일 때 현재 보고 있는 화면 모드 상태
-  const [teacherActiveView, setTeacherActiveView] = useState<'admin' | 'banker' | 'mart' | 'student' | 'donation' | null>(null);
+  const teacherViewKey = `class_bank_teacher_active_view_${currentUser?.userId || 'unknown'}`;
+  const [teacherActiveView, setTeacherActiveViewState] = useState<'admin' | 'banker' | 'mart' | 'student' | 'donation' | null>(() => {
+      const saved = localStorage.getItem(teacherViewKey);
+      return ['admin','banker','mart','student','donation'].includes(saved || '') ? saved as any : null;
+  });
+  const setTeacherActiveView = (next: 'admin' | 'banker' | 'mart' | 'student' | 'donation' | null) => {
+      setTeacherActiveViewState(next);
+      if (next) localStorage.setItem(teacherViewKey, next); else localStorage.removeItem(teacherViewKey);
+  };
 
   useEffect(() => {
     const handleTokenLogin = async () => {
@@ -134,15 +142,16 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [restoringSession, setRestoringSession] = useState(() => Boolean(localStorage.getItem(sessionKey) || sessionStorage.getItem(sessionKey)));
 
   // Auto-login on mount (session-based to allow clean login when reopening browser)
   useEffect(() => {
-    const storedUserId = sessionStorage.getItem(sessionKey) || localStorage.getItem(sessionKey);
+    const storedUserId = localStorage.getItem(sessionKey) || sessionStorage.getItem(sessionKey);
     if (storedUserId) {
         api.login(storedUserId).then(user => {
             if (user) {
                 setCurrentUser(user);
-                sessionStorage.setItem(sessionKey, user.userId);
+                localStorage.setItem(sessionKey, user.userId);
             } else {
                 localStorage.removeItem(sessionKey);
                 localStorage.removeItem('class_bank_is_guest');
@@ -155,16 +164,16 @@ const App: React.FC = () => {
             localStorage.removeItem('class_bank_is_guest');
             sessionStorage.removeItem(sessionKey);
             sessionStorage.removeItem('class_bank_is_guest');
-        });
-    }
+        }).finally(() => setRestoringSession(false));
+    } else setRestoringSession(false);
   }, []);
 
   const authContextValue = useMemo(() => ({
     currentUser,
     login: (user: User) => {
-        // Save session in sessionStorage (clears automatically when closing browser/tab)
+        // Keep the signed-in user across background tab disposal and browser restarts.
+        localStorage.setItem(sessionKey, user.userId);
         sessionStorage.setItem(sessionKey, user.userId);
-        localStorage.removeItem(sessionKey);
         localStorage.removeItem('class_bank_is_guest');
         setCurrentUser(user);
     },
@@ -199,7 +208,7 @@ const App: React.FC = () => {
           <button className="font-bold underline shrink-0" onClick={() => { sessionStorage.removeItem(sessionKey); setCurrentUser(null); }}>계정 선택</button>
         </div>}
         <div className="w-full h-screen md:max-w-5xl md:h-[calc(100vh-2rem)] md:max-h-[900px] bg-white md:rounded-2xl shadow-lg overflow-hidden flex flex-col">
-          <AppContent />
+          {restoringSession ? <div className="flex h-full flex-col items-center justify-center gap-4 text-gray-600"><div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600"/><p className="font-bold">이전 화면을 복원하는 중...</p></div> : <AppContent />}
         </div>
       </div>
     </AuthContext.Provider>

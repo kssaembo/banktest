@@ -64,6 +64,16 @@ test('bank and mart operations conserve combined balances', async () => {
   const final = await balance(student) + (await api.getTeacherAccount())!.balance + (await api.getMartAccountByTeacherId(teacher))!.balance;
   assert.equal(initial, final);
 });
+test('mart catalog supports add, hide, update and delete without changing balances', async () => {
+  const before = await balance(student);
+  const item = await api.addMartItem(teacher, { name: '공책', price: 700, category: '학용품' });
+  assert.equal((await api.getMartItems(teacher)).find(row => row.id === item.id)?.price, 700);
+  await api.updateMartItem(item.id, { price: 800, is_active: false });
+  assert.equal((await api.getMartItems(teacher)).find(row => row.id === item.id)?.is_active, false);
+  await api.deleteMartItem(item.id);
+  assert.equal((await api.getMartItems(teacher)).some(row => row.id === item.id), false);
+  assert.equal(await balance(student), before);
+});
 test('bulk salary failure rolls back earlier recipients', async () => {
   await api.updateJob('job_2', '마트', 'test', 1000000);
   const before = await balance(student), treasury = (await api.getTeacherAccount())!.balance;

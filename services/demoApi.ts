@@ -4,6 +4,7 @@ import { Role, FundStatus, TransactionType as T } from '../types';
 
 // A disposable, tab-local simulation. These rules are NOT the production SQL.
 const KEY = 'class_bank_development_data_v1';
+const durableStorage: Storage = typeof localStorage !== 'undefined' ? localStorage : sessionStorage;
 const teacher = 'guest_teacher';
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
@@ -12,7 +13,7 @@ let state: State;
 function fresh(): State { return createDefaultMockState(); }
 function read(): State {
   try {
-    const value = sessionStorage.getItem(KEY);
+    const value = durableStorage.getItem(KEY) || sessionStorage.getItem(KEY);
     if (value) {
       const parsed = JSON.parse(value);
       if (parsed.teacherUser?.userId === teacher && Array.isArray(parsed.accounts)) return parsed;
@@ -60,7 +61,7 @@ const settleSaving = (uid: string, sid: string, maturity: boolean) => {
   const saving = required(state.studentSavings.find(s => s.savingId === sid && s.userId === uid));
   const product = required(state.savingsProducts.find(p => p.id === saving.productId));
   if (maturity && new Date(saving.maturityDate).getTime() > Date.now()) throw new Error('아직 만기일이 아닙니다.');
-  const interest = money(saving.amount * (maturity ? product.rate : product.cancellationRate) / 100);
+  const interest = money(saving.amount * (maturity ? product.rate : product.cancellationRate));
   if (treasury().balance < interest) throw new Error('국고의 이자 지급 잔액이 부족합니다.');
   if (interest > 0) { treasury().balance = money(treasury().balance - interest); record(treasury(), T.WITHDRAWAL, interest, '예금 이자 지급'); }
   credit(uid, saving.amount + interest, maturity ? T.SAVINGS_MATURITY : T.SAVINGS_CANCEL, `${product.name} 정산`);
@@ -221,6 +222,20 @@ const local: LocalApi = {
   updateDonation: (did, title, url, content, imageUrl) => { Object.assign(required(state.donations.find(d => d.id === did)), { title, url, content, imageUrl }); },
   getDonationLogs: did => state.donationLogs.filter(d => d.donation_id === did).map(d => ({ ...d, user: { name: d.user_name, number: d.user_number } })),
   deleteDonation: did => { state.donations = state.donations.filter(d => d.id !== did); state.donationLogs = state.donationLogs.filter(d => d.donation_id !== did); },
+  getMartItems: tid => state.martItems.filter(item => item.teacher_id === tid).sort((a, b) => a.sort_order - b.sort_order),
+  addMartItem: (tid, input) => {
+    positive(input.price);
+    const stamp = now();
+    const item = { id: id(), teacher_id: tid, name: input.name.trim(), price: money(input.price), category: input.category.trim() || '기타', is_active: true, sort_order: state.martItems.length + 1, created_at: stamp, updated_at: stamp };
+    if (!item.name) throw new Error('상품명을 입력하세요.');
+    state.martItems.push(item); return item;
+  },
+  updateMartItem: (itemId, input) => {
+    const item = required(state.martItems.find(row => row.id === itemId));
+    if (input.price !== undefined) positive(input.price);
+    Object.assign(item, input, { updated_at: now() }); return item;
+  },
+  deleteMartItem: itemId => { state.martItems = state.martItems.filter(item => item.id !== itemId); },
 };
 
 // Execute each local action atomically and detach return values from the store.
@@ -229,9 +244,9 @@ export const api = Object.fromEntries(Object.entries(local).map(([name, fn]) => 
   const before = structuredClone(state);
   try {
     const result = (fn as (...values: unknown[]) => unknown)(...args);
-    sessionStorage.setItem(KEY, JSON.stringify(state));
+    durableStorage.setItem(KEY, JSON.stringify(state));
     return structuredClone(result);
   } catch (error) { state = before; throw error; }
 }])) as BankApi;
 
-export function resetDemo() { state = fresh(); sessionStorage.setItem(KEY, JSON.stringify(state)); }
+export function resetDemo() { state = fresh(); durableStorage.setItem(KEY, JSON.stringify(state)); }

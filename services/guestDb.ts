@@ -142,8 +142,8 @@ const createDefaultMockState = () => {
     ];
 
     const savingsProducts: SavingsProduct[] = [
-        { id: 'savings_1', name: '7일 행운 예금', maturityDays: 7, rate: 10, cancellationRate: 2, maxAmount: 50000, teacher_id: teacherId },
-        { id: 'savings_2', name: '14일 보름달 적금', maturityDays: 14, rate: 25, cancellationRate: 5, maxAmount: 100000, teacher_id: teacherId },
+        { id: 'savings_1', name: '7일 행운 예금', maturityDays: 7, rate: 0.1, cancellationRate: 0.02, maxAmount: 50000, teacher_id: teacherId },
+        { id: 'savings_2', name: '14일 보름달 적금', maturityDays: 14, rate: 0.25, cancellationRate: 0.05, maxAmount: 100000, teacher_id: teacherId },
     ];
 
     const studentSavings: StudentSaving[] = [

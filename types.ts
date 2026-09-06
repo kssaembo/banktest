@@ -212,3 +212,15 @@ export interface DonationRecord {
   created_at: string;
   teacher_id: string;
 }
+
+export interface MartItem {
+  id: string;
+  teacher_id: string;
+  name: string;
+  price: number;
+  category: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}

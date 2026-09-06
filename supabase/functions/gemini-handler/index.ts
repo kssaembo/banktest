@@ -11,7 +11,7 @@ const corsHeaders = {
 async function generateWithRetry(ai: any, model: string, contents: any, config: any, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      return await ai.models.generateContentStream({
+      return await ai.models.generateContent({
         model,
         contents,
         config
@@ -41,8 +41,8 @@ serve(async (req) => {
     if (!apiKey) throw new Error("API_KEY or GEMINI_API_KEY is not set.");
     
     const ai = new GoogleGenAI({ apiKey });
-    // Use the most stable preview model for text tasks
-    const model = 'gemini-3-flash-preview';
+    // Stable production model. The previous preview id can return HTTP 400 after retirement.
+    const model = 'gemini-3.8-flash';
     
     let prompt = "";
     let responseSchema: any = null;
@@ -96,45 +96,28 @@ serve(async (req) => {
         },
         required: ["passed", "reason"]
       };
+    } else {
+      throw new Error(`Unsupported action: ${String(action)}`);
     }
 
-    const stream = await generateWithRetry(ai, model, prompt, {
+    const result = await generateWithRetry(ai, model, prompt, {
       responseMimeType: "application/json",
       responseSchema: responseSchema
     });
-
-    // Create a ReadableStream to pipe the AI output to the client
-    const encoder = new TextEncoder();
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            const text = chunk.text;
-            if (text) {
-              controller.enqueue(encoder.encode(text));
-            }
-          }
-          controller.close();
-        } catch (e) {
-          controller.error(e);
-        }
-      }
-    });
-
-    return new Response(readableStream, {
+    const text = result.text;
+    if (!text) throw new Error('Gemini returned an empty response.');
+    return new Response(text, {
       headers: { 
         ...corsHeaders, 
-        "Content-Type": "text/event-stream; charset=utf-8",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive"
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
       },
     })
   } catch (error: any) {
     console.error("Gemini Handler Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400
+      status: 500
     })
   }
 })
-

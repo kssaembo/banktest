@@ -13,5 +13,5 @@ if (!isDemo && (!supabaseUrl || !supabaseAnonKey)) {
 export const supabase = isDemo
   ? new Proxy({} as ReturnType<typeof createClient>, { get() { throw new Error('가상 학급에서는 실제 데이터베이스에 연결할 수 없습니다.'); } })
   : createClient(validateTestProjectUrl(supabaseUrl), supabaseAnonKey, {
-      auth: { storage: sessionStorage, storageKey: 'classbank-test-hoktiaduvzoaeapymuqw-auth' },
+      auth: { storage: localStorage, persistSession: true, autoRefreshToken: true, storageKey: 'classbank-test-hoktiaduvzoaeapymuqw-auth' },
     });

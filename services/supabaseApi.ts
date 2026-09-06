@@ -1154,6 +1154,29 @@ async function deleteDonation(donationId: string): Promise<void> {
     handleSupabaseError(error, 'deleteDonation');
 }
 
+async function getMartItems(teacherId: string) {
+    const { data, error } = await supabase.from('mart_items').select('*').eq('teacher_id', teacherId).order('sort_order').order('created_at');
+    handleSupabaseError(error, 'getMartItems');
+    return data || [];
+}
+
+async function addMartItem(teacherId: string, input: { name: string; price: number; category: string }) {
+    const { data, error } = await supabase.from('mart_items').insert({ teacher_id: teacherId, name: input.name.trim(), price: input.price, category: input.category.trim() || '기타' }).select().single();
+    handleSupabaseError(error, 'addMartItem');
+    return data;
+}
+
+async function updateMartItem(itemId: string, input: { name?: string; price?: number; category?: string; is_active?: boolean; sort_order?: number }) {
+    const { data, error } = await supabase.from('mart_items').update({ ...input, updated_at: new Date().toISOString() }).eq('id', itemId).select().single();
+    handleSupabaseError(error, 'updateMartItem');
+    return data;
+}
+
+async function deleteMartItem(itemId: string): Promise<void> {
+    const { error } = await supabase.from('mart_items').delete().eq('id', itemId);
+    handleSupabaseError(error, 'deleteMartItem');
+}
+
 const baseApi = {
     login, signupTeacher, loginTeacher, requestRecoveryCode, verifyRecoveryCode, resetTeacherPassword, checkTeacherExists,
     loginWithPassword, verifyAdminPassword, changePassword, resetPassword, loginWithQrToken, getUsersByRole,
@@ -1165,7 +1188,8 @@ const baseApi = {
     getJobs, addJob, updateJob, deleteJob, manageJobAssignment, updateJobIncentive, payJobSalary, payAllSalaries,
     getTaxes, createTax, deleteTax, getMyUnpaidTaxes, payTax, getFunds, createFund, deleteFund, joinFund, settleFund, getMyFundInvestments,
     getFundInvestors, issueCurrency, deleteTeacherAccount, getDailyTreasuryTotals,
-    getDonations, createDonation, closeDonation, donate, updateDonation, getDonationLogs, getStockTransactions, deleteDonation
+    getDonations, createDonation, closeDonation, donate, updateDonation, getDonationLogs, getStockTransactions, deleteDonation,
+    getMartItems, addMartItem, updateMartItem, deleteMartItem
 };
 
 export const api = baseApi;
