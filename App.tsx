@@ -115,8 +115,8 @@ const AppContent: React.FC = () => {
       }
 
       return (
-          <div className="flex flex-col h-full relative">
-              <div className="flex-1 h-full overflow-hidden">
+          <div className="role-host flex flex-col relative">
+              <div className="role-host-content flex-1">
                   {teacherActiveView === 'admin' && <TeacherDashboard onBackToMenu={() => setTeacherActiveView(null)} />}
                   {teacherActiveView === 'banker' && <BankerPage onBackToMenu={() => setTeacherActiveView(null)} />}
                   {teacherActiveView === 'mart' && <MartPage onBackToMenu={() => setTeacherActiveView(null)} />}
@@ -212,12 +212,12 @@ const App: React.FC = () => {
 
   return (
     <AuthContext.Provider value={authContextValue}>
-      <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#dbeafe_0,transparent_42%),#eef3f9] md:p-4 flex flex-col justify-center items-center">
+      <div className="app-shell min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0,transparent_42%),#eef3f9] md:p-4 flex flex-col items-center">
         {isDemo && <div className="w-full md:max-w-5xl bg-amber-100 text-amber-950 px-4 py-2 text-sm flex justify-between items-center gap-3" role="status">
           <span>가상 학급 · 실제 계좌와 연결되지 않음</span>
           <button className="font-bold underline shrink-0" onClick={() => { sessionStorage.removeItem(sessionKey); setCurrentUser(null); }}>계정 선택</button>
         </div>}
-        <div className="w-full h-full md:max-w-6xl md:h-[calc(100vh-2rem)] bg-white md:rounded-[28px] shadow-xl overflow-hidden flex flex-col">
+        <div className="app-frame w-full md:max-w-6xl bg-white md:rounded-[28px] shadow-xl flex flex-col">
           {restoringSession ? <div className="flex h-full flex-col items-center justify-center gap-4 text-gray-600"><div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600"/><p className="font-bold">이전 화면을 복원하는 중...</p></div> : <AppContent />}
         </div>
       </div>

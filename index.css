@@ -105,3 +105,41 @@
 .teacher-sidebar .teacher-nav-button > div { width:36px; height:36px; }
 .teacher-sidebar .teacher-nav-button img { width:34px; height:34px; }
 .teacher-workbench nav img { object-fit:contain; }
+/* The document owns page scrolling. Dialogs and explicitly bounded logs keep local scrolling. */
+.app-shell { height:auto; min-height:100dvh; overflow:visible; }
+.app-frame { height:auto; min-height:calc(100dvh - 2rem); overflow:visible; }
+.role-host,.role-host-content { height:auto; min-height:inherit; overflow:visible; }
+.role-workspace { height:auto; min-height:calc(100dvh - 2rem); align-items:stretch; }
+.role-workspace > div { height:auto; min-width:0; overflow:visible; }
+.role-workspace > div > main { height:auto; flex:1; overflow:visible; }
+.role-workspace > aside { overflow:visible; }
+.role-workspace > div > main > .h-full { height:auto; }
+.student-studio { height:auto; min-height:calc(100dvh - 2rem); overflow:visible; border-radius:28px; }
+.student-workspace { min-height:640px; }
+.student-content { height:auto; overflow:visible; }
+.student-main { overflow:visible; height:auto; }
+.student-rail { overflow:visible; }
+.student-rail-extras button { display:flex; align-items:center; justify-content:center; width:100%; border:1px solid #ffffff70; border-radius:11px; background:#ffffff18; padding:9px 3px; box-shadow:0 2px 5px #123c7015; }
+.student-rail-extras button:hover { background:#ffffff35; }
+.student-nav-button img { width:36px; height:36px; object-fit:contain; }
+.student-studio nav.md\:hidden img { width:30px; height:30px; object-fit:contain; }
+.student-content > header button[title]::after { content:attr(title); display:block; font-size:10px; margin-left:5px; }
+.student-content > header button[title] { display:flex; align-items:center; padding:8px; border:1px solid #d7e5f7; }
+.student-content > header > div:last-child { justify-content:flex-end; }
+.main-keyboard-art { display:block; width:48px; height:48px; }
+.main-keyboard-art .student-keyboard { transform:scale(.55) rotate(-5deg); transform-origin:top left; margin:5px 0 0; }
+.mart-total-panel { min-width:0; min-height:256px; }
+.mart-payment-grid { margin-top:10px; margin-bottom:20px; }
+@media(max-width:767px) {
+ .role-workspace > div > main { padding-bottom:110px; }
+ .role-workspace > div > nav.md\:hidden { position:fixed; bottom:0; left:0; right:0; z-index:40; }
+ .teacher-workbench > div > nav.md\:hidden { bottom:64px; }
+ .teacher-workbench > div > .md\:hidden.px-4 { position:fixed; bottom:0; left:0; right:0; z-index:40; background:white; padding-top:8px; }
+ .student-workspace { min-height:0; }
+ .student-topbar { flex-wrap:wrap; }
+ .student-profile { margin-left:auto; }
+ .student-studio { border-radius:0; }
+ .student-pick-button { white-space:nowrap; }
+ .mart-total-panel { min-height:160px; }
+}
+.mart-workspace aside nav img { width:30px; height:30px; object-fit:contain; }
