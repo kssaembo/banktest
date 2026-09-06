@@ -1,3 +1,4 @@
+import { TeacherExchangeArtwork, TeacherStocksArtwork, TeacherSavingsArtwork } from '../components/TeacherMenuArtwork';
 import React, { useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { api } from '../services/api';
@@ -39,9 +40,9 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
                     <p className="text-sm text-gray-500">{currentUser?.name}</p>
                 </div>
                 <nav className="mt-8 flex flex-col space-y-2">
-                    <DesktopNavButton label="입/출금" Icon={TransferIcon} active={view === 'deposit_withdraw'} onClick={() => setView('deposit_withdraw')} />
-                    <DesktopNavButton label="주식거래소" Icon={StockIcon} active={view === 'stock_exchange'} onClick={() => setView('stock_exchange')} />
-                    <DesktopNavButton label="예금 관리" Icon={NewPiggyBankIcon} active={view === 'savings_management'} onClick={() => setView('savings_management')} />
+                    <DesktopNavButton label="입/출금" Icon={TeacherExchangeArtwork} active={view === 'deposit_withdraw'} onClick={() => setView('deposit_withdraw')} />
+                    <DesktopNavButton label="주식거래소" Icon={TeacherStocksArtwork} active={view === 'stock_exchange'} onClick={() => setView('stock_exchange')} />
+                    <DesktopNavButton label="예금 관리" Icon={TeacherSavingsArtwork} active={view === 'savings_management'} onClick={() => setView('savings_management')} />
                 </nav>
                 <div className="mt-auto">
                     <button onClick={handleLogout} className="w-full flex items-center p-3 text-sm text-gray-600 rounded-lg hover:bg-gray-200/50 transition-colors">
@@ -70,9 +71,9 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
 
                 {/* Bottom Nav for Mobile */}
                 <nav className="md:hidden grid grid-cols-3 bg-white p-1 border-t sticky bottom-0 z-10">
-                    <NavButton label="입/출금" Icon={TransferIcon} active={view === 'deposit_withdraw'} onClick={() => setView('deposit_withdraw')} />
-                    <NavButton label="주식거래소" Icon={StockIcon} active={view === 'stock_exchange'} onClick={() => setView('stock_exchange')} />
-                    <NavButton label="예금 관리" Icon={NewPiggyBankIcon} active={view === 'savings_management'} onClick={() => setView('savings_management')} />
+                    <NavButton label="입/출금" Icon={TeacherExchangeArtwork} active={view === 'deposit_withdraw'} onClick={() => setView('deposit_withdraw')} />
+                    <NavButton label="주식거래소" Icon={TeacherStocksArtwork} active={view === 'stock_exchange'} onClick={() => setView('stock_exchange')} />
+                    <NavButton label="예금 관리" Icon={TeacherSavingsArtwork} active={view === 'savings_management'} onClick={() => setView('savings_management')} />
                 </nav>
             </div>
         </div>

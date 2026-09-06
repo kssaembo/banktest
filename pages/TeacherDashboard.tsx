@@ -1,3 +1,4 @@
+import { TeacherDashboardArtwork, TeacherStudentsArtwork, TeacherJobsArtwork, TeacherTaxArtwork, TeacherFundsArtwork, TeacherDonationsArtwork, TeacherStocksArtwork } from '../components/TeacherMenuArtwork';
 import { dailyActivity } from '../services/activityStats';
 /* ... existing sql comments ... */
 import { api } from '../services/api';
@@ -1025,7 +1026,7 @@ return dailyActivity(transactions);
              <div className="flex flex-wrap justify-end gap-2"><button onClick={()=>setCsvDialog(true)} className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-black text-emerald-700">CSV 다운로드</button><button onClick={exportBackup} disabled={exporting} className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-black text-white disabled:opacity-50">{exporting?'백업 준비 중...':'전체 백업'}</button></div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* 선생님 지갑 박스: 가로 2배 (md:col-span-2) */}
-                <div onClick={() => { setVisibleHistoryModalTxns(10); setShowHistoryModal(true); }} className="md:col-span-2 bg-[#2B548F] text-white p-8 rounded-xl shadow-lg cursor-pointer hover:bg-[#234576] transition-colors relative overflow-hidden group min-h-[160px] flex flex-col justify-center">
+                <div onClick={() => { setVisibleHistoryModalTxns(10); setShowHistoryModal(true); }} className="teacher-treasury md:col-span-2 bg-[#2B548F] text-white p-8 rounded-xl shadow-lg cursor-pointer hover:bg-[#234576] transition-colors relative overflow-hidden group min-h-[160px] flex flex-col justify-center">
                     <div className="relative z-10">
                         <div className="flex justify-between items-start">
                             <div>
@@ -2563,7 +2564,7 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     };
 
     const NavButton = ({ id, label, Icon }: { id: typeof view | 'stocks', label: string, Icon: React.FC<any> }) => (
-        <button onClick={() => id === 'stocks' ? setShowStockTransactions(true) : setView(id)} className={`w-full flex items-center p-3 text-sm font-semibold rounded-lg transition-colors ${view === id ? 'bg-[#2B548F] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+        <button onClick={() => id === 'stocks' ? setShowStockTransactions(true) : setView(id)} aria-current={view === id ? 'page' : undefined} className={`teacher-nav-button w-full flex items-center p-3 text-sm font-semibold rounded-lg transition-colors ${view === id ? 'bg-[#2B548F] text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
             <div className="w-10 h-10 mr-3 flex items-center justify-center">
                 <Icon className={id === 'donations' ? 'w-5 h-5' : 'w-10 h-10'} />
             </div>
@@ -2581,8 +2582,8 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     );
 
     return (
-        <div className="flex h-full bg-gray-100">
-            <aside className="hidden md:flex flex-col w-64 bg-white border-r p-4 shadow-sm z-10">
+        <div className="teacher-workbench flex h-full min-h-0 bg-gray-100">
+            <aside className="teacher-sidebar hidden md:flex flex-col w-56 shrink-0 bg-white border-r p-4 z-10">
                 <div className="px-2 mb-8">
                     <h1 className="text-xl font-bold text-gray-800">{alias}</h1>
                     <div className="mt-1 flex items-center gap-2">
@@ -2591,12 +2592,12 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                     </div>
                 </div>
                 <nav className="flex flex-col space-y-2 flex-grow">
-                    <NavButton id="dashboard" label="대시보드" Icon={NewDashboardIcon} />
-                    <NavButton id="students" label="학생 관리" Icon={NewManageAccountsIcon} />
-                    <NavButton id="jobs" label="직업 관리" Icon={NewBriefcaseIcon} />
-                    <NavButton id="tax" label="세금 관리" Icon={NewTaxIcon} />
-                    <NavButton id="funds" label="펀드 관리" Icon={NewFundIcon} />
-                    <NavButton id="donations" label="기부 관리" Icon={HeartIcon} />
+                    <NavButton id="dashboard" label="대시보드" Icon={TeacherDashboardArtwork} />
+                    <NavButton id="students" label="학생 관리" Icon={TeacherStudentsArtwork} />
+                    <NavButton id="jobs" label="직업 관리" Icon={TeacherJobsArtwork} />
+                    <NavButton id="tax" label="세금 관리" Icon={TeacherTaxArtwork} />
+                    <NavButton id="funds" label="펀드 관리" Icon={TeacherFundsArtwork} />
+                    <NavButton id="donations" label="기부 관리" Icon={TeacherDonationsArtwork} />
                 </nav>
 
                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
@@ -2605,7 +2606,7 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                         className="w-full flex items-center gap-3 p-4 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-sm hover:bg-indigo-100 transition-all group border border-indigo-100 shadow-sm"
                     >
                         <div className="w-6 h-6 flex items-center justify-center">
-                            <NewStockIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            <TeacherStocksArtwork className="w-8 h-8 group-hover:scale-110 transition-transform" />
                         </div>
                         주식 관리
                     </button>
@@ -2615,7 +2616,7 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                     <LogoutIcon className="w-10 h-10 mr-3" /> {onBackToMenu ? '메뉴로' : '로그아웃'}
                 </button>
             </aside>
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <div className="min-w-0 flex-1 flex flex-col h-full overflow-hidden">
                 <header className="md:hidden bg-white p-4 border-b flex justify-between items-center shadow-sm z-10">
                     <div>
                         <h1 className="text-lg font-bold text-gray-800">{alias}</h1>
@@ -2623,23 +2624,23 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                     </div>
                     <button onClick={handleLogout} className="p-2 text-gray-600"><LogoutIcon className="w-12 h-12" /></button>
                 </header>
-                <main className="flex-grow p-4 md:p-8 overflow-y-auto bg-[#F3F4F6]">
+                <main className="teacher-main min-w-0 flex-grow p-4 md:p-7 overflow-y-auto bg-[#F3F4F6]">
                     {loading ? <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2B548F]"></div></div> : renderContent()}
                 </main>
                 <nav className="md:hidden bg-white border-t grid grid-cols-6 pb-safe">
-                    <MobileNavButton id="dashboard" label="대시보드" Icon={NewDashboardIcon} />
-                    <MobileNavButton id="students" label="학생" Icon={NewManageAccountsIcon} />
-                    <MobileNavButton id="jobs" label="직업" Icon={NewBriefcaseIcon} />
-                    <MobileNavButton id="tax" label="세금" Icon={NewTaxIcon} />
-                    <MobileNavButton id="funds" label="펀드" Icon={NewFundIcon} />
-                    <MobileNavButton id="donations" label="기부" Icon={HeartIcon} />
+                    <MobileNavButton id="dashboard" label="대시보드" Icon={TeacherDashboardArtwork} />
+                    <MobileNavButton id="students" label="학생" Icon={TeacherStudentsArtwork} />
+                    <MobileNavButton id="jobs" label="직업" Icon={TeacherJobsArtwork} />
+                    <MobileNavButton id="tax" label="세금" Icon={TeacherTaxArtwork} />
+                    <MobileNavButton id="funds" label="펀드" Icon={TeacherFundsArtwork} />
+                    <MobileNavButton id="donations" label="기부" Icon={TeacherDonationsArtwork} />
                 </nav>
                 <div className="md:hidden px-4 pb-4">
                     <button 
                         onClick={() => setShowStockTransactions(true)} 
                         className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-black text-xs border border-indigo-100"
                     >
-                        <NewStockIcon className="w-6 h-6" /> 주식 관리
+                        <TeacherStocksArtwork className="w-8 h-8" /> 주식 관리
                     </button>
                 </div>
                 {showStockTransactions && <StockTransactionsModal onClose={() => setShowStockTransactions(false)} />}

@@ -157,3 +157,20 @@ test('activity uses actual daily counts including inactive dates', () => {
   ]);
   assert.deepEqual(dailyActivity([]), []);
 });
+
+import {newsMonthRange, monthlyNewsActivity, newsErrorMessage} from '../features/economy-news/newsStats';
+test('monthly news includes Korea month start, excludes next month and unknown students',()=>{
+ const range=newsMonthRange(0,new Date('2026-09-15T00:00:00Z'));
+ assert.equal(range.start.toISOString(),'2026-08-31T15:00:00.000Z');
+ assert.equal(range.end.toISOString(),'2026-09-30T15:00:00.000Z');
+ const activity=monthlyNewsActivity([{userId:'a',created_at:'2026-08-31T15:00:00Z'},{userId:'a',created_at:'2026-09-01T00:00:00Z'},{userId:'b',created_at:'2026-09-30T15:00:00Z'},{userId:'other-class',created_at:'2026-09-03T00:00:00Z'}],['a','b'],range);
+ assert.equal(activity.monthly.length,2);assert.equal(activity.participants.size,1);assert.deepEqual(activity.absent,['b']);
+ assert.equal(newsMonthRange(-1,new Date('2026-01-15')).label,'2025년 12월');
+ assert.equal(newsMonthRange(0,new Date('2024-02-15')).end.toISOString(),'2024-02-29T15:00:00.000Z');
+});
+test('news errors distinguish overload, invalid keys, quota and depleted credits',()=>{
+ assert.match(newsErrorMessage('{"code":503,"status":"UNAVAILABLE"}'),/일시적으로/);
+ assert.match(newsErrorMessage('API_KEY_INVALID'),/유효하지/);
+ assert.match(newsErrorMessage('RESOURCE_EXHAUSTED'),/요청 한도/);
+ assert.match(newsErrorMessage('prepayment credits are depleted'),/선불 크레딧/);
+});

@@ -20,6 +20,7 @@ import { FeatureGuide } from '../components/FeatureGuide';
 import { ChartModal, DonutCard, TrendChart } from '../components/VisualAnalytics';
 
 type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds';
+type LearningSection = 'news' | 'reading' | 'typing';
 type NotificationType = { type: 'success' | 'error', text: string };
 
 interface StudentPageProps {
@@ -92,7 +93,7 @@ const StudentSelectionView: React.FC<{ students: User[], onSelect: (s: User) => 
 
 // --- Sub-Views ---
 
-const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: () => void, showNotification: (type: 'success'|'error', text: string) => void }> = ({ account, currentUser, refreshAccount, showNotification }) => {
+const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account: Account, currentUser: User, refreshAccount: () => void, showNotification: (type: 'success'|'error', text: string) => void }> = ({ account, currentUser, refreshAccount, showNotification, onLearn }) => {
     // 화폐 단위 로직: DB 데이터가 우선, 없으면 기본값 '권'
     const unit = currentUser?.currencyUnit || '권';
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -173,8 +174,8 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
     };
 
     return (
-        <div className="space-y-6">
-<div className="grid w-full gap-5 rounded-[32px] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-5 md:p-7 text-left shadow-sm lg:grid-cols-[minmax(0,1fr)_280px] items-start"><div className="min-w-0"><p className="mb-2 text-sm font-black text-gray-800">내 총 자산</p><h2 className="text-4xl font-black tracking-tight text-gray-900">{totalAssets.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}<span className="ml-1 text-2xl">{unit}</span></h2>            {unpaidTaxes.length > 0 && (
+        <div className="student-home space-y-5">
+<div className="student-asset-card grid w-full gap-5 rounded-[32px] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-5 md:p-7 text-left shadow-sm lg:grid-cols-[minmax(0,1fr)_280px] items-start"><div className="min-w-0"><p className="mb-2 text-sm font-black text-gray-800">내 총 자산</p><h2 className="student-total text-4xl font-black tracking-tight text-gray-900">{totalAssets.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}<span className="ml-1 text-2xl">{unit}</span></h2>            {unpaidTaxes.length > 0 && (
                 <div className="mt-4 bg-red-50 p-4 rounded-3xl border border-red-100">
                     <h3 className="font-black text-red-700 mb-4 flex items-center tracking-tight text-lg">
                         <NewTaxIcon className="w-6 h-6 mr-2"/> 미납 세금 고지서
@@ -201,7 +202,8 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
                 </div>
             )}
 <button onClick={()=>setAssetModal(true)} className="mt-3 text-xs font-bold text-blue-600">자산 그래프 자세히 보기 ↗</button></div><DonutCard title="내 자산 구성" centerLabel={unit} onSelect={()=>setAssetModal(true)} data={[{name:'현금',value:account.balance},{name:'주식',value:stockValue},{name:'예금',value:savingsValue}]}/></div>
-            <div>
+            <div className="student-home-bottom">
+            <section className="student-recent">
                 <h3 className="text-lg font-black text-gray-900 mb-4 ml-1 tracking-tight">최근 활동</h3>
                 <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-gray-100">
                     {transactionsWithBalance.slice(0, visibleCount).map(t => (
@@ -229,7 +231,12 @@ const HomeView: React.FC<{ account: Account, currentUser: User, refreshAccount: 
                         </button>
                     )}
                 </div>
-            </div>
+            </section>
+            <section className="student-learning"><div className="mb-4"><p className="student-eyebrow">배우며 자라는 경제 습관</p><h3 className="text-lg font-black">경제 학습 바로가기</h3></div><div className="student-learning-grid">
+                <button onClick={()=>onLearn('news')} className="student-learning-tile"><img src="/design/news-ai.png" alt=""/><strong>경제뉴스</strong><span>오늘의 경제 소식을<br/>쉽고 재미있게</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button onClick={()=>onLearn('reading')} className="student-learning-tile"><img src="/design/asset-savings.png" alt=""/><strong>경제상식</strong><span>알아두면 쓸모 있는<br/>경제 지식 배우기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button onClick={()=>onLearn('typing')} className="student-learning-tile"><span className="student-keyboard" aria-hidden="true"><i>ㄱ</i><i>ㄴ</i><i>ㄷ</i><i>ㄹ</i><i>ㅁ</i><i>ㅂ</i><i className="student-spacekey"/></span><strong>경제자판</strong><span>또박또박 타자로<br/>경제 용어 익히기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+            </div></section></div>
 
             <ConfirmModal 
                 isOpen={!!taxToPay}
@@ -1581,25 +1588,20 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
         if (!account) return <div className="text-center py-20 font-black text-gray-400">계좌 정보가 없습니다.</div>;
 
         switch (view) {
-            case 'home': return <HomeView account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
+            case 'home': return <HomeView onLearn={section => section === 'news' ? setShowNewsModal(true) : section === 'reading' ? setShowReadingModal(true) : setShowTypingModal(true)} account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'transfer': return <TransferView currentUser={{...effectiveUser, currencyUnit: currentUnit}} account={account} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'stocks': return <StocksView currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'savings': return <SavingsView currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'funds': return <FundView currentUser={{...effectiveUser, currencyUnit: currentUnit}} students={students} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
-            default: return <HomeView account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
+            default: return <HomeView onLearn={section => section === 'news' ? setShowNewsModal(true) : section === 'reading' ? setShowReadingModal(true) : setShowTypingModal(true)} account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
         }
     };
 
     return (
-        <div className="h-full flex flex-col md:flex-row bg-[#F2F4F7] overflow-hidden">
-            <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 p-6 z-30">
-                <div className="mb-10 px-2">
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tighter mb-1">
-                        {activeStudent ? activeStudent.name : (currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name)}
-                    </h1>
-                    <p className="text-xs text-gray-700 font-bold uppercase tracking-widest">Student Dashboard</p>
-                </div>
-                
+        <div className="student-studio h-full min-h-0 flex flex-col overflow-hidden">
+            <header className="student-topbar"><div className="student-brand">Class Bank<span aria-hidden="true">✦</span></div><div className="student-profile"><div className="student-header-guide"><EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name}/></div><span className="student-avatar"><StudentIcon className="w-6 h-6"/></span><div><span className="student-eyebrow">나의 경제 교실</span><strong>{activeStudent ? activeStudent.name : currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name}</strong></div></div></header>
+            <div className="student-workspace flex min-h-0 flex-1">
+            <aside className="student-rail hidden md:flex flex-col shrink-0 z-30">
                 {(activeStudent || currentUser.role === Role.STUDENT) && (
                     <nav className="space-y-2 flex-grow">
                         <DesktopNavBtn icon={HomeIcon} label="홈" active={view === 'home'} onClick={() => setView('home')} />
@@ -1610,7 +1612,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                     </nav>
                 )}
 
-                <div className="mt-auto space-y-3">
+                <div className="student-rail-extras mt-auto space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                         <button 
                             onClick={() => setShowReadingModal(true)} 
@@ -1645,11 +1647,8 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 </div>
             </aside>
 
-            <div className="flex-1 flex flex-col h-full relative">
+            <div className="student-content min-w-0 flex-1 flex flex-col h-full relative">
                 {/* Desktop Economy Expedition Launcher - Top Right */}
-                <div className="absolute top-6 right-10 z-30 hidden md:block">
-                    <EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name} />
-                </div>
                 <header className="md:hidden bg-white/80 backdrop-blur-xl px-6 py-4 flex justify-between items-center border-b border-gray-100 sticky top-0 z-40">
                     <div className="flex items-center">
                         {currentUser.role === Role.TEACHER && activeStudent && (
@@ -1679,12 +1678,9 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                     </div>
                 </header>
 
-                <main className="flex-grow overflow-y-auto p-4 md:p-10 pb-28 md:pb-10">
-                    <div className="max-w-4xl mx-auto">
+                <main className="student-main min-h-0 flex-grow overflow-y-auto p-4 md:p-6 pb-28 md:pb-6">
+                    <div className="w-full max-w-6xl mx-auto">
                         {(activeStudent || currentUser.role === Role.STUDENT) && <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-black text-slate-800">{view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'}</h2><FeatureGuide title={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} label={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} items={view === 'home' ? [{title:'자산을 확인해요',description:'현금과 투자·예금 현황을 한눈에 확인합니다.'},{title:'최근 활동을 봐요',description:'최근 거래 금액과 내용을 확인합니다.'}] : view === 'transfer' ? [{title:'받는 친구를 확인해요',description:'친구의 계좌번호를 정확히 입력합니다.'},{title:'금액을 확인해요',description:'송금 전 받는 사람과 금액을 다시 확인합니다.'}] : view === 'stocks' ? [{title:'종목을 살펴봐요',description:'현재 가격과 변화를 확인합니다.'},{title:'수량을 정해요',description:'내 잔액과 보유 수량을 확인한 뒤 거래합니다.'}] : view === 'savings' ? [{title:'상품을 비교해요',description:'만기, 이자율과 최대 가입 금액을 비교합니다.'},{title:'가입 후 확인해요',description:'내 예금에서 원금과 만기일을 확인합니다.'}] : [{title:'목표를 읽어요',description:'펀드의 목표와 모집·만기 일정을 확인합니다.'},{title:'위험과 보상을 확인해요',description:'성공과 실패 조건을 읽고 투자 수량을 결정합니다.'}]} /></div>}
-                        <div className="md:hidden flex justify-end mb-2">
-                            <EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name} isMobile />
-                        </div>
                         {renderView()}
                     </div>
                 </main>
@@ -1700,6 +1696,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 )}
             </div>
 
+            </div>
             <DonationModal 
                 isOpen={showDonationModal}
                 onClose={() => setShowDonationModal(false)}
@@ -1745,7 +1742,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 };
 
 const DesktopNavBtn = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
-    <button onClick={onClick} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-black text-sm transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-800 hover:bg-gray-100'}`}>
+    <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`student-nav-button w-full flex items-center gap-4 p-4 rounded-2xl font-black text-sm transition-all ${active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-gray-800 hover:bg-gray-100'}`}>
         <Icon className={`w-6 h-6 ${active ? 'text-white' : 'text-gray-600'}`} /> {label}
     </button>
 );
