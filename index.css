@@ -143,3 +143,16 @@
  .mart-total-panel { min-height:160px; }
 }
 .mart-workspace aside nav img { width:30px; height:30px; object-fit:contain; }
+
+/* Only the outer shell reserves viewport space. */
+.app-frame{flex:1;min-height:0}
+.role-host,.role-host-content,.role-workspace{flex:1;min-height:0}
+.student-studio{flex:1;min-height:0}
+.student-workspace{min-height:0}
+.recharts-tooltip-wrapper{z-index:30!important}
+.recharts-sector:focus:not(:focus-visible),.recharts-surface:focus:not(:focus-visible),.recharts-layer:focus:not(:focus-visible){outline:none}
+.recharts-sector:focus-visible{outline:2px solid #2563eb;outline-offset:3px}
+
+@keyframes reward-appear{from{opacity:0;transform:translateY(20px) scale(.85)}to{opacity:1;transform:translateY(0) scale(1)}}
+.reward-celebration{animation:reward-appear .35s ease-out}
+@media(prefers-reduced-motion:reduce){.reward-celebration{animation:none}}
