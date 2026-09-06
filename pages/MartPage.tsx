@@ -1,3 +1,5 @@
+import {playSound} from '../services/sounds';
+import {MartCheckoutArtwork,MartProductsArtwork,MartTransferArtwork,MartDetailsArtwork} from '../components/RoleMenuArtwork';
 
 import { api } from '../services/api';
 import React, { useState, useEffect, useCallback, useContext } from 'react';
@@ -15,6 +17,7 @@ const MessageModal: React.FC<{
     message: string;
     onClose: () => void;
 }> = ({ isOpen, type, message, onClose }) => {
+    useEffect(()=>{if(isOpen&&type==='error')playSound('error-soft');},[isOpen,type,message]);
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -89,7 +92,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
     };
 
     return (
-        <div className="flex h-full bg-gray-100">
+        <div className="role-workspace mart-workspace flex h-full bg-gray-100">
             {/* Sidebar for Desktop */}
             <aside className="hidden md:flex w-56 shrink-0 flex-col bg-white/80 backdrop-blur-sm border-r p-4">
                 <div className="px-2">
@@ -97,10 +100,10 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                     <p className="text-sm text-gray-500">{currentUser?.name}</p>
                 </div>
                 <nav className="mt-8 flex flex-col space-y-2">
-                    <DesktopNavButton label="마트 계산대" Icon={NewMartIcon} active={view === 'pos'} onClick={() => setView('pos')} />
-                    <DesktopNavButton label="상품/서비스 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
-                    <DesktopNavButton label="송금" Icon={TransferIcon} active={view === 'transfer'} onClick={() => setView('transfer')} />
-                    <DesktopNavButton label="세부내역" Icon={NewHistoryIcon} active={view === 'history'} onClick={() => setView('history')} />
+                    <DesktopNavButton label="마트 계산대" Icon={MartCheckoutArtwork} active={view === 'pos'} onClick={() => setView('pos')} />
+                    <DesktopNavButton label="상품/서비스 관리" Icon={MartProductsArtwork} active={view === 'items'} onClick={() => setView('items')} />
+                    <DesktopNavButton label="송금" Icon={MartTransferArtwork} active={view === 'transfer'} onClick={() => setView('transfer')} />
+                    <DesktopNavButton label="세부내역" Icon={MartDetailsArtwork} active={view === 'history'} onClick={() => setView('history')} />
                 </nav>
                 <div className="mt-auto">
                     <button onClick={handleLogout} className="w-full flex items-center p-3 text-sm text-gray-600 rounded-lg hover:bg-gray-200/50 transition-colors">
@@ -125,7 +128,7 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
 
                 <main className="flex-grow overflow-y-auto bg-[#D1D3D8]">
                     <div className="flex flex-wrap items-center gap-3 bg-[#D1D3D8] px-4 pt-4"><h2 className="text-2xl font-black text-slate-800">{view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'}</h2><FeatureGuide title={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} label={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} items={[
-                        { title: '상품/서비스을 준비해요', description: '상품/서비스 관리에서 자주 판매하는 상품과 가격을 등록합니다.' },
+                        { title: '상품/서비스를 준비해요', description: '상품/서비스 관리에서 자주 판매하는 상품과 가격을 등록합니다.' },
                         { title: '계산대에서 선택해요', description: '학생을 고른 뒤 상품을 누르면 합계가 자동으로 입력됩니다. 금액을 직접 입력할 수도 있습니다.' },
                         { title: '거래를 확인해요', description: '결제 후 세부내역에서 금액과 시간을 확인하고, 송금 탭에서 마트 잔액을 이동합니다.' }
                     ]} /></div>
@@ -134,10 +137,10 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
 
                 {/* Bottom Nav for Mobile */}
                 <nav className="md:hidden grid grid-cols-4 bg-white p-1 border-t sticky bottom-0 z-10">
-                    <NavButton label="마트 계산대" Icon={NewMartIcon} active={view === 'pos'} onClick={() => setView('pos')} />
-                    <NavButton label="상품/서비스 관리" Icon={NewHistoryIcon} active={view === 'items'} onClick={() => setView('items')} />
-                    <NavButton label="송금" Icon={TransferIcon} active={view === 'transfer'} onClick={() => setView('transfer')} />
-                    <NavButton label="세부내역" Icon={NewHistoryIcon} active={view === 'history'} onClick={() => setView('history')} />
+                    <NavButton label="마트 계산대" Icon={MartCheckoutArtwork} active={view === 'pos'} onClick={() => setView('pos')} />
+                    <NavButton label="상품/서비스 관리" Icon={MartProductsArtwork} active={view === 'items'} onClick={() => setView('items')} />
+                    <NavButton label="송금" Icon={MartTransferArtwork} active={view === 'transfer'} onClick={() => setView('transfer')} />
+                    <NavButton label="세부내역" Icon={MartDetailsArtwork} active={view === 'history'} onClick={() => setView('history')} />
                 </nav>
             </div>
         </div>
@@ -300,15 +303,15 @@ const PaymentView: React.FC<{
             </div>
 
             {items.length > 0 && <div className="mb-4 rounded-2xl bg-white p-4 shadow-sm"><div className="mb-3 flex items-center justify-between"><p className="font-black text-gray-700">등록 상품/서비스</p><span className="text-xs text-gray-400">눌러서 합계 입력</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">{items.map(item => <button key={item.id} onClick={() => addItem(item)} className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-left hover:border-blue-400"><span className="block truncate text-sm font-black text-gray-800">{item.name}</span><span className="text-xs font-bold text-blue-700">{item.price.toLocaleString()}{unit}{cart[item.id] ? ` × ${cart[item.id]}` : ''}</span></button>)}</div></div>}
-            <div className="flex-grow flex flex-col md:flex-row md:gap-8 justify-between">
-                <div className="flex-grow flex items-center justify-center text-center p-4">
+            <div className="mart-payment-grid grid w-full max-w-3xl grid-cols-1 gap-5 md:grid-cols-2 items-start mx-auto">
+                <div className="mart-total-panel flex min-h-56 items-center justify-center rounded-2xl border border-blue-100 bg-white text-center p-5">
                      <div><p className="text-5xl font-mono font-bold tracking-tight text-gray-800 break-all sm:text-6xl">
                         {parseInt(amount || '0').toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                         <span className="text-3xl ml-2 font-sans font-medium">{unit}</span>
                      </p>{Object.keys(cart).length > 0 && <p className="mt-3 text-sm font-bold text-blue-700">선택 상품/서비스 {(Object.values(cart) as number[]).reduce((a,b)=>a+b,0)}개 · <button onClick={clearCart} className="underline">선택 초기화</button></p>}</div>
                 </div>
                 
-                <div className="w-full md:w-72 flex flex-col">
+                <div className="mart-keypad w-full min-w-0 flex flex-col">
                     <div className="grid grid-cols-3 gap-2 mb-2">
                         <KeypadButton value="1" />
                         <KeypadButton value="2" />
@@ -327,7 +330,7 @@ const PaymentView: React.FC<{
                      <button 
                         onClick={onPay} 
                         disabled={loading || !amount || parseInt(amount) <= 0}
-                        className="w-full mt-auto p-4 bg-green-500 text-white font-bold text-xl rounded-xl shadow-lg disabled:bg-gray-400"
+                        className="w-full mt-2 p-4 bg-green-500 text-white font-bold text-xl rounded-xl shadow-lg disabled:bg-gray-400"
                     >
                         {loading ? '결제 중...' : '결제하기'}
                     </button>

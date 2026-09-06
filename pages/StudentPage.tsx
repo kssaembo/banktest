@@ -1,3 +1,5 @@
+import {playSound} from '../services/sounds';
+import {StudentHomeArtwork,StudentTransferArtwork,StudentStockArtwork,StudentFundArtwork,StudentSavingsArtwork} from '../components/RoleMenuArtwork';
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { api } from '../services/api';
@@ -233,9 +235,9 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                 </div>
             </section>
             <section className="student-learning"><div className="mb-4"><p className="student-eyebrow">배우며 자라는 경제 습관</p><h3 className="text-lg font-black">경제 학습 바로가기</h3></div><div className="student-learning-grid">
-                <button onClick={()=>onLearn('news')} className="student-learning-tile"><img src="/design/news-ai.png" alt=""/><strong>경제뉴스</strong><span>오늘의 경제 소식을<br/>쉽고 재미있게</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
-                <button onClick={()=>onLearn('reading')} className="student-learning-tile"><img src="/design/asset-savings.png" alt=""/><strong>경제상식</strong><span>알아두면 쓸모 있는<br/>경제 지식 배우기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
-                <button onClick={()=>onLearn('typing')} className="student-learning-tile"><span className="student-keyboard" aria-hidden="true"><i>ㄱ</i><i>ㄴ</i><i>ㄷ</i><i>ㄹ</i><i>ㅁ</i><i>ㅂ</i><i className="student-spacekey"/></span><strong>경제자판</strong><span>또박또박 타자로<br/>경제 용어 익히기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button data-sfx="news-open" onClick={()=>onLearn('news')} className="student-learning-tile"><img src="/design/news-ai.png" alt=""/><strong>경제뉴스</strong><span>오늘의 경제 소식을<br/>쉽고 재미있게</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button data-sfx="news-open" onClick={()=>onLearn('reading')} className="student-learning-tile"><img src="/design/asset-savings.png" alt=""/><strong>경제상식</strong><span>알아두면 쓸모 있는<br/>경제 지식 배우기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button data-sfx="news-open" onClick={()=>onLearn('typing')} className="student-learning-tile"><span className="student-keyboard" aria-hidden="true"><i>ㄱ</i><i>ㄴ</i><i>ㄷ</i><i>ㄹ</i><i>ㅁ</i><i>ㅂ</i><i className="student-spacekey"/></span><strong>경제자판</strong><span>또박또박 타자로<br/>경제 용어 익히기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
             </div></section></div>
 
             <ConfirmModal 
@@ -1528,6 +1530,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     const [showNewsModal, setShowNewsModal] = useState(false);
     const [account, setAccount] = useState<Account | null>(null);
     const [notification, setNotification] = useState<NotificationType | null>(null);
+    useEffect(()=>{if(notification?.type==='error')playSound('error-soft');},[notification]);
     const [isLoading, setIsLoading] = useState(false);
     
     const [activeStudent, setActiveStudent] = useState<User | null>(null);
@@ -1558,7 +1561,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     useEffect(() => {
         if (currentUser?.role === Role.TEACHER && !activeStudent) {
-            api.getUsersByRole(Role.STUDENT, currentUser.userId).then(rows=>{setStudents(rows);const saved=localStorage.getItem(`class_bank_active_student_${currentUser.userId}`);const student=rows.find(row=>row.userId===saved);if(student)setActiveStudent(student);});
+            api.getUsersByRole(Role.STUDENT, currentUser.userId).then(setStudents).catch(e=>setNotification({type:'error',text:e.message||'학생 목록을 불러오지 못했습니다.'}));
         }
     }, [currentUser, activeStudent]);
 
@@ -1573,7 +1576,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     const renderView = () => {
         if (currentUser.role === Role.TEACHER && !activeStudent) {
-            return <StudentSelectionView students={students} onSelect={student=>{setActiveStudent(student);localStorage.setItem(`class_bank_active_student_${currentUser.userId}`,student.userId);}} />;
+            return <StudentSelectionView students={students} onSelect={student=>{setAccount(null);setActiveStudent(student);setView('home');}} />;
         }
 
         if (isLoading) return (
@@ -1599,29 +1602,29 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     return (
         <div className="student-studio h-full min-h-0 flex flex-col overflow-hidden">
-            <header className="student-topbar"><div className="student-brand">Class Bank<span aria-hidden="true">✦</span></div><div className="student-profile"><div className="student-header-guide"><EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name}/></div><span className="student-avatar"><StudentIcon className="w-6 h-6"/></span><div><span className="student-eyebrow">나의 경제 교실</span><strong>{activeStudent ? activeStudent.name : currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name}</strong></div></div></header>
+            <header className="student-topbar"><div className="student-brand">Class Bank<span aria-hidden="true">✦</span></div><div className="student-profile">{currentUser.role===Role.TEACHER&&activeStudent&&<button onClick={()=>{setActiveStudent(null);setAccount(null);}} className="student-pick-button rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">학생 목록</button>}<div className="student-header-guide"><EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name}/></div><span className="student-avatar"><StudentIcon className="w-6 h-6"/></span><div><span className="student-eyebrow">나의 경제 교실</span><strong>{activeStudent ? activeStudent.name : currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name}</strong></div></div></header>
             <div className="student-workspace flex min-h-0 flex-1">
             <aside className="student-rail hidden md:flex flex-col shrink-0 z-30">
                 {(activeStudent || currentUser.role === Role.STUDENT) && (
                     <nav className="space-y-2 flex-grow">
-                        <DesktopNavBtn icon={HomeIcon} label="홈" active={view === 'home'} onClick={() => setView('home')} />
-                        <DesktopNavBtn icon={TransferIcon} label="송금" active={view === 'transfer'} onClick={() => setView('transfer')} />
-                        <DesktopNavBtn icon={NewStockIcon} label="주식" active={view === 'stocks'} onClick={() => setView('stocks')} />
-                        <DesktopNavBtn icon={NewFundIcon} label="펀드" active={view === 'funds'} onClick={() => setView('funds')} />
-                        <DesktopNavBtn icon={NewPiggyBankIcon} label="예금" active={view === 'savings'} onClick={() => setView('savings')} />
+                        <DesktopNavBtn icon={StudentHomeArtwork} label="홈" active={view === 'home'} onClick={() => setView('home')} />
+                        <DesktopNavBtn icon={StudentTransferArtwork} label="송금" active={view === 'transfer'} onClick={() => setView('transfer')} />
+                        <DesktopNavBtn icon={StudentStockArtwork} label="주식" active={view === 'stocks'} onClick={() => setView('stocks')} />
+                        <DesktopNavBtn icon={StudentFundArtwork} label="펀드" active={view === 'funds'} onClick={() => setView('funds')} />
+                        <DesktopNavBtn icon={StudentSavingsArtwork} label="예금" active={view === 'savings'} onClick={() => setView('savings')} />
                     </nav>
                 )}
 
                 <div className="student-rail-extras mt-auto space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                         <button 
-                            onClick={() => setShowReadingModal(true)} 
+                            data-sfx="news-open" onClick={() => setShowReadingModal(true)} 
                             className="flex items-center justify-center p-3.5 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xs hover:bg-indigo-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
                         >
                             경제상식
                         </button>
                         <button 
-                            onClick={() => setShowTypingModal(true)} 
+                            data-sfx="news-open" onClick={() => setShowTypingModal(true)} 
                             className="flex items-center justify-center p-3.5 bg-amber-50 text-amber-700 rounded-2xl font-black text-xs hover:bg-amber-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
                         >
                             경제자판
@@ -1635,7 +1638,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                             기부왕
                         </button>
                         <button 
-                            onClick={() => setShowNewsModal(true)} 
+                            data-sfx="news-open" onClick={() => setShowNewsModal(true)} 
                             className="flex items-center justify-center p-3.5 bg-sky-50 text-sky-700 rounded-2xl font-black text-xs hover:bg-sky-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
                         >
                             경제뉴스
@@ -1664,17 +1667,17 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                         <button onClick={() => setShowDonationModal(true)} className="p-2.5 bg-pink-50 text-pink-700 rounded-2xl shadow-sm border border-pink-100 transition-all active:scale-90" title="기부왕">
                             <HeartIcon className="w-5 h-5" />
                         </button>
-                        <button onClick={() => setShowReadingModal(true)} className="p-2.5 bg-indigo-50 text-indigo-700 rounded-2xl shadow-sm border border-indigo-100 transition-all active:scale-90" title="경제 상식 알기">
+                        <button data-sfx="news-open" onClick={() => setShowReadingModal(true)} className="p-2.5 bg-indigo-50 text-indigo-700 rounded-2xl shadow-sm border border-indigo-100 transition-all active:scale-90" title="경제 상식 알기">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                             </svg>
                         </button>
-                        <button onClick={() => setShowTypingModal(true)} className="p-2.5 bg-amber-50 text-amber-700 rounded-2xl shadow-sm border border-amber-100 transition-all active:scale-90" title="경제 자판 연습">
+                        <button data-sfx="news-open" onClick={() => setShowTypingModal(true)} className="p-2.5 bg-amber-50 text-amber-700 rounded-2xl shadow-sm border border-amber-100 transition-all active:scale-90" title="경제 자판 연습">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                         </button>
-                        <button onClick={() => setShowNewsModal(true)} className="p-2.5 bg-sky-50 text-sky-700 rounded-2xl shadow-sm border border-sky-100 transition-all active:scale-90" title="경제 뉴스"><NewspaperIcon className="w-5 h-5" /></button>
+                        <button data-sfx="news-open" onClick={() => setShowNewsModal(true)} className="p-2.5 bg-sky-50 text-sky-700 rounded-2xl shadow-sm border border-sky-100 transition-all active:scale-90" title="경제 뉴스"><NewspaperIcon className="w-5 h-5" /></button>
                     </div>
                 </header>
 
@@ -1687,11 +1690,11 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
                 {(activeStudent || currentUser.role === Role.STUDENT) && (
                     <nav className="md:hidden bg-white/90 backdrop-blur-2xl border-t border-gray-100 grid grid-cols-5 p-2.5 fixed bottom-0 left-0 right-0 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
-                        <MobileNavBtn icon={HomeIcon} label="홈" active={view === 'home'} onClick={() => setView('home')} />
-                        <MobileNavBtn icon={TransferIcon} label="송금" active={view === 'transfer'} onClick={() => setView('transfer')} />
-                        <MobileNavBtn icon={NewStockIcon} label="주식" active={view === 'stocks'} onClick={() => setView('stocks')} />
-                        <MobileNavBtn icon={NewFundIcon} label="펀드" active={view === 'funds'} onClick={() => setView('funds')} />
-                        <MobileNavBtn icon={NewPiggyBankIcon} label="예금" active={view === 'savings'} onClick={() => setView('savings')} />
+                        <MobileNavBtn icon={StudentHomeArtwork} label="홈" active={view === 'home'} onClick={() => setView('home')} />
+                        <MobileNavBtn icon={StudentTransferArtwork} label="송금" active={view === 'transfer'} onClick={() => setView('transfer')} />
+                        <MobileNavBtn icon={StudentStockArtwork} label="주식" active={view === 'stocks'} onClick={() => setView('stocks')} />
+                        <MobileNavBtn icon={StudentFundArtwork} label="펀드" active={view === 'funds'} onClick={() => setView('funds')} />
+                        <MobileNavBtn icon={StudentSavingsArtwork} label="예금" active={view === 'savings'} onClick={() => setView('savings')} />
                     </nav>
                 )}
             </div>

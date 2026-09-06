@@ -1,24 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const SOUND_KEY = 'classbank_sound_enabled';
-
-function playClick() {
-  if (localStorage.getItem(SOUND_KEY) === 'off') return;
-  try {
-    const AudioCtx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(520, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(720, ctx.currentTime + 0.055);
-    gain.gain.setValueAtTime(0.045, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
-    osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.075);
-    osc.addEventListener('ended', () => ctx.close());
-  } catch { /* Sound must never block an action. */ }
-}
+import {SOUND_KEY,playSound,playButtonSound,stopSounds} from '../services/sounds';
 
 export default function GlobalExperience({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState<string | null>(null);
@@ -26,9 +8,13 @@ export default function GlobalExperience({ children }: { children: React.ReactNo
 
   useEffect(() => {
     const originalAlert = window.alert;
-    window.alert = value => setMessage(String(value));
+    window.alert = value => {setMessage(String(value)); if(/오류|실패|입력|불가|부족|최대|확인해/.test(String(value)))playSound('error-soft');};
     const onClick = (event: MouseEvent) => {
-      if ((event.target as HTMLElement | null)?.closest('button,[role="button"]')) playClick();
+      const button=(event.target as HTMLElement|null)?.closest('button,[role="button"]') as HTMLButtonElement|null;
+      if(!button||button.disabled||button.getAttribute('aria-disabled')==='true')return;
+      const cue=button.dataset.sfx;if(cue==='news-open'){playSound('news-open');return;}
+      const text=button.textContent||'';
+      playButtonSound(button.closest('nav')?'navigation':/닫기|취소|뒤로|로그아웃/.test(text)?'dismiss':/송금|결제|가입|납부|발행|등록|저장/.test(text)?'action':'default');
     };
     document.addEventListener('click', onClick, true);
     return () => { window.alert = originalAlert; document.removeEventListener('click', onClick, true); };
@@ -38,7 +24,7 @@ export default function GlobalExperience({ children }: { children: React.ReactNo
     const next = !soundEnabled;
     localStorage.setItem(SOUND_KEY, next ? 'on' : 'off');
     setSoundEnabled(next);
-    if (next) setTimeout(playClick, 0);
+    if(next)setTimeout(()=>playButtonSound(),0);else stopSounds();
   };
 
   return <>

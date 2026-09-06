@@ -1,3 +1,4 @@
+import {operationCue,playSound} from './sounds';
 
 import { isDemo } from './runtime';
 import type { api as SupabaseApi } from './supabaseApi';
@@ -11,7 +12,7 @@ export const api = new Proxy({} as BankApi, {
       const { api: implementation } = await backend;
       const fn = implementation[method as keyof BankApi];
       if (typeof fn !== 'function') throw new Error(`지원하지 않는 기능: ${method}`);
-      return (fn as (...args: unknown[]) => unknown)(...args);
+      try {const result=await (fn as (...args: unknown[]) => unknown)(...args);const cue=operationCue(method);if(cue)playSound(cue);return result;} catch(error){if(!/^(get|login|validate)/.test(method))playSound('error-soft');throw error;}
     };
   },
 });

@@ -1,3 +1,4 @@
+import {playSound} from '../services/sounds';
 import React, { useState, useEffect, useRef } from 'react';
 import { XIcon, BackIcon } from './icons';
 
@@ -520,6 +521,7 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
 
     // 현재 단어/글 정답 체크 (정확도가 너무 낮으면 넘어갈 수 없음 - 최소 70% 이상 요건)
     if (accuracy < 70) {
+      playSound('error-soft');
       setLocalNotification({
         text: '정확도가 너무 낮습니다. 오타를 수정해주세요!\n(정확도 70% 이상 완료 필수)'
       });
@@ -546,6 +548,7 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
     });
 
     if (currentIndex < sessionTexts.length - 1) {
+      playSound('typing-correct');
       // 다음 단계로
       setCurrentIndex(prev => prev + 1);
       setTypedText('');
@@ -560,6 +563,7 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
 
   // 시간 만료 시 실패 처리
   const handleTimeOut = () => {
+    playSound('error-soft');
     setIsTimerRunning(false);
     setLocalNotification({
       text: '⏰ 시간 초과!\n아쉽게도 정해진 시간 안에 모두 완수하지 못해 배지를 획득하지 못했습니다. 다시 시도해 보세요!',
@@ -571,6 +575,7 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
 
   // 성공 시 배지 보상 지급 및 결과창 이동
   const handlePracticeSuccess = () => {
+    playSound('typing-success');
     setIsTimerRunning(false);
     const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
     setTimeSpent(elapsedSeconds);

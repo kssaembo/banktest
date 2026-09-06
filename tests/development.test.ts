@@ -174,3 +174,8 @@ test('news errors distinguish overload, invalid keys, quota and depleted credits
  assert.match(newsErrorMessage('RESOURCE_EXHAUSTED'),/요청 한도/);
  assert.match(newsErrorMessage('prepayment credits are depleted'),/선불 크레딧/);
 });
+
+import {operationCue} from '../services/sounds';
+test('sound categories match successful operations and ignore read-only queries',()=>{
+ assert.equal(operationCue('payTax'),'tax-paid');assert.equal(operationCue('joinSavings'),'savings-open');assert.equal(operationCue('buyStock'),'savings-open');assert.equal(operationCue('joinFund'),'savings-open');assert.equal(operationCue('donate'),'savings-open');assert.equal(operationCue('issueCurrency'),'success-coin');assert.equal(operationCue('transfer'),'success-coin');assert.equal(operationCue('getStudentAccountByUserId'),undefined);
+});

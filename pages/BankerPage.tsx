@@ -32,7 +32,7 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
     };
 
     return (
-        <div className="flex h-full bg-gray-50">
+        <div className="role-workspace banker-workspace flex h-full bg-gray-50">
             {/* Sidebar for Desktop */}
             <aside className="hidden md:flex flex-col w-56 bg-white/80 backdrop-blur-sm border-r p-4">
                 <div className="px-2">

@@ -1,3 +1,4 @@
+import {KeyboardArtwork} from '../components/RoleMenuArtwork';
 
 import React, { useContext, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
@@ -56,7 +57,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[radial-gradient(circle_at_top_left,#dbeafe_0,transparent_36%),linear-gradient(145deg,#f8fbff,#eef4ff)] p-6 overflow-y-auto">
+    <div className="role-selection flex flex-col bg-[radial-gradient(circle_at_top_left,#dbeafe_0,transparent_36%),linear-gradient(145deg,#f8fbff,#eef4ff)] p-6">
       <div className="max-w-4xl mx-auto w-full flex-grow flex flex-col justify-center py-12">
         <header className="flex justify-between items-start mb-12">
           <div>
@@ -100,35 +101,31 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
         {/* 경제 뉴스 및 경제 상식 알기, 경제 자판 연습 버튼 추가 */}
         <div className="mt-8 flex flex-col md:flex-row justify-center gap-4 flex-wrap">
           <button
-            onClick={() => setShowNewsModal(true)}
+            data-sfx="news-open" onClick={() => setShowNewsModal(true)}
             className="group flex items-center gap-3 px-8 py-5 bg-white rounded-[30px] shadow-[0_8px_25px_rgba(0,0,0,0.03)] border border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] hover:scale-[1.02] hover:border-indigo-100 transition-all active:scale-95 w-full md:w-auto md:min-w-[280px] justify-center"
           >
             <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-              <NewspaperIcon className="w-6 h-6 text-indigo-600" />
+              <img src="/design/news-ai.png" alt="" className="w-12 h-12 object-contain"/>
             </div>
             <span className="text-lg font-black text-gray-800 group-hover:text-indigo-600 transition-colors">경제 뉴스 바로가기</span>
           </button>
 
           <button
-            onClick={() => setShowReadingModal(true)}
+            data-sfx="news-open" onClick={() => setShowReadingModal(true)}
             className="group flex items-center gap-3 px-8 py-5 bg-white rounded-[30px] shadow-[0_8px_25px_rgba(0,0,0,0.03)] border border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] hover:scale-[1.02] hover:border-indigo-100 transition-all active:scale-95 w-full md:w-auto md:min-w-[280px] justify-center text-left"
           >
             <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+              <img src="/design/asset-savings.png" alt="" className="w-12 h-12 object-contain"/>
             </div>
             <span className="text-lg font-black text-gray-800 group-hover:text-indigo-600 transition-colors">경제 상식 알기</span>
           </button>
 
           <button
-            onClick={() => setShowTypingModal(true)}
+            data-sfx="news-open" onClick={() => setShowTypingModal(true)}
             className="group flex items-center gap-3 px-8 py-5 bg-white rounded-[30px] shadow-[0_8px_25px_rgba(0,0,0,0.03)] border border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] hover:scale-[1.02] hover:border-amber-100 transition-all active:scale-95 w-full md:w-auto md:min-w-[280px] justify-center text-left"
           >
             <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center group-hover:bg-amber-100 transition-colors">
-              <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <span className="main-keyboard-art"><KeyboardArtwork/></span>
             </div>
             <span className="text-lg font-black text-gray-800 group-hover:text-amber-600 transition-colors">경제 자판 연습</span>
           </button>

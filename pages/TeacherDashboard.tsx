@@ -1,3 +1,4 @@
+import {playSound} from '../services/sounds';
 import { TeacherDashboardArtwork, TeacherStudentsArtwork, TeacherJobsArtwork, TeacherTaxArtwork, TeacherFundsArtwork, TeacherDonationsArtwork, TeacherStocksArtwork } from '../components/TeacherMenuArtwork';
 import { dailyActivity } from '../services/activityStats';
 /* ... existing sql comments ... */
@@ -84,6 +85,7 @@ const MessageModal: React.FC<{
     message: string;
     onClose: () => void;
 }> = ({ isOpen, type, message, onClose }) => {
+    useEffect(()=>{if(isOpen&&type==='error')playSound('error-soft');},[isOpen,type,message]);
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -2582,7 +2584,7 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
     );
 
     return (
-        <div className="teacher-workbench flex h-full min-h-0 bg-gray-100">
+        <div className="role-workspace teacher-workbench flex h-full min-h-0 bg-gray-100">
             <aside className="teacher-sidebar hidden md:flex flex-col w-56 shrink-0 bg-white border-r p-4 z-10">
                 <div className="px-2 mb-8">
                     <h1 className="text-xl font-bold text-gray-800">{alias}</h1>

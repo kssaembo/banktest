@@ -152,7 +152,7 @@ export const EconomyReadingModal: React.FC<EconomyReadingModalProps> = ({ isOpen
                 >
                   <div className="relative aspect-[4/3] bg-gray-50 overflow-hidden shrink-0 border-b border-gray-50">
                     <img 
-                      src={`/economy_reading/${item.file}`} 
+                      loading="lazy" decoding="async" src={`/economy_reading/${item.file}`} 
                       alt={item.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       referrerPolicy="no-referrer"
