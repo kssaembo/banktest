@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import TestAccessGate from './components/TestAccessGate';
 import GlobalExperience from './components/GlobalExperience';
 import './index.css';
 
@@ -13,6 +12,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <GlobalExperience><TestAccessGate><App /></TestAccessGate></GlobalExperience>
+    <GlobalExperience><App /></GlobalExperience>
   </React.StrictMode>
 );

@@ -7,26 +7,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Retry logic with exponential backoff
-async function generateWithRetry(ai: any, model: string, contents: any, config: any, retries = 3) {
-  for (let i = 0; i < retries; i++) {
+const models = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+];
+
+function isTemporaryModelError(error: any) {
+  const message = String(error?.message || error);
+  return message.includes('503') || message.includes('UNAVAILABLE') || message.includes('high demand');
+}
+
+async function generateWithFallback(ai: any, contents: any, config: any) {
+  let lastError: any;
+  for (const model of models) {
     try {
-      return await ai.models.generateContent({
-        model,
-        contents,
-        config
-      });
-    } catch (e: any) {
-      if (e.message?.includes("503") && i < retries - 1) {
-        const delay = Math.pow(2, i) * 1000;
-        console.log(`503 error, retrying in ${delay}ms...`);
-        await new Promise(res => setTimeout(res, delay));
-        continue;
-      }
-      throw e;
+      return await ai.models.generateContent({ model, contents, config });
+    } catch (error: any) {
+      if (!isTemporaryModelError(error)) throw error;
+      lastError = error;
+      console.warn(`Gemini model unavailable: ${model}`);
     }
   }
-  throw new Error("Max retries reached");
+  throw lastError || new Error('All Gemini fallback models are unavailable.');
 }
 
 serve(async (req) => {
@@ -41,9 +45,6 @@ serve(async (req) => {
     if (!apiKey) throw new Error("Supabase Secrets에 GEMINI_API_KEY를 등록해주세요.");
     
     const ai = new GoogleGenAI({ apiKey });
-    // Stable production model. The previous preview id can return HTTP 400 after retirement.
-    const model = 'gemini-3.8-flash';
-    
     let prompt = "";
     let responseSchema: any = null;
 
@@ -100,7 +101,7 @@ serve(async (req) => {
       throw new Error(`Unsupported action: ${String(action)}`);
     }
 
-    const result = await generateWithRetry(ai, model, prompt, {
+    const result = await generateWithFallback(ai, prompt, {
       responseMimeType: "application/json",
       responseSchema: responseSchema
     });
@@ -119,10 +120,11 @@ serve(async (req) => {
     const depleted=raw.includes('prepayment credits are depleted');
     const quota=depleted||raw.includes('RESOURCE_EXHAUSTED')||raw.includes('429');
     const invalidKey=raw.includes('API_KEY_INVALID')||raw.includes('API key not valid');
-    const message=invalidKey ? 'Gemini API 키가 유효하지 않습니다. Supabase Secrets의 GEMINI_API_KEY 값을 Google AI Studio에서 발급한 유효한 키로 확인해주세요.' : depleted ? 'Gemini 선불 크레딧이 소진되었습니다. Google AI Studio 결제 설정을 확인해주세요.' : quota ? 'Gemini 요청 한도를 초과했습니다. 잠시 후 다시 시도하거나 Google AI Studio에서 프로젝트 한도를 확인해주세요.' : raw;
+    const unavailable=isTemporaryModelError(error);
+    const message=invalidKey ? 'Gemini API 키가 유효하지 않습니다. Supabase Secrets의 GEMINI_API_KEY 값을 Google AI Studio에서 발급한 유효한 키로 확인해주세요.' : depleted ? 'Gemini 선불 크레딧이 소진되었습니다. Google AI Studio 결제 설정을 확인해주세요.' : quota ? 'Gemini 요청 한도를 초과했습니다. 잠시 후 다시 시도하거나 Google AI Studio에서 프로젝트 한도를 확인해주세요.' : unavailable ? 'Gemini 모델이 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요.' : raw;
     return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: invalidKey ? 400 : quota ? 429 : 500
+      status: invalidKey ? 400 : quota ? 429 : unavailable ? 503 : 500
     })
   }
 })
