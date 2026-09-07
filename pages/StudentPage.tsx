@@ -1546,6 +1546,12 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
         }
     }, [initialView]);
 
+    useEffect(() => {
+        if (initialView === 'donation' && (currentUser?.role !== Role.TEACHER || activeStudent)) {
+            setShowDonationModal(true);
+        }
+    }, [initialView, currentUser?.role, activeStudent]);
+
     const handleLogout = onBackToMenu || logout;
 
     const refreshAccount = useCallback(async () => {
@@ -1619,39 +1625,13 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                     </nav>
                 )}
 
-                <div className="student-rail-extras mt-auto space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                        <button 
-                            data-sfx="news-open" onClick={() => setShowReadingModal(true)} 
-                            className="flex items-center justify-center p-3.5 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-xs hover:bg-indigo-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
-                        >
-                            경제상식
-                        </button>
-                        <button 
-                            data-sfx="news-open" onClick={() => setShowTypingModal(true)} 
-                            className="flex items-center justify-center p-3.5 bg-amber-50 text-amber-700 rounded-2xl font-black text-xs hover:bg-amber-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
-                        >
-                            경제자판
-                        </button>
-                    </div>
-                    <button data-sfx="news-open" onClick={() => setShowStoryModal(true)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/50 bg-white/15 p-3 text-center text-xs font-black text-white transition-all hover:bg-white/25 active:scale-95"><img src="/design/student-page/economy-story.webp" alt="" className="h-6 w-6 object-contain"/>경제 이야기</button>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button 
-                            onClick={() => setShowDonationModal(true)} 
-                            className="flex items-center justify-center p-3.5 bg-pink-50 text-pink-700 rounded-2xl font-black text-xs hover:bg-pink-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
-                        >
-                            <img src="/design/student-page/donation-king.webp" alt="" className="h-6 w-6 object-contain"/>기부왕
-                        </button>
-                        <button 
-                            data-sfx="news-open" onClick={() => setShowNewsModal(true)} 
-                            className="flex items-center justify-center p-3.5 bg-sky-50 text-sky-700 rounded-2xl font-black text-xs hover:bg-sky-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
-                        >
-                            경제뉴스
-                        </button>
-                    </div>
-                    <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 p-3.5 text-gray-600 hover:text-red-600 font-black text-xs rounded-2xl hover:bg-red-50 transition-all">
-                        <LogoutIcon className="w-4 h-4" /> {onBackToMenu ? '메뉴로' : '로그아웃'}
-                    </button>
+                <div className="student-rail-extras mt-auto">
+                    <button data-sfx="news-open" onClick={() => setShowReadingModal(true)}>경제상식</button>
+                    <button data-sfx="news-open" onClick={() => setShowTypingModal(true)}>경제자판</button>
+                    <button data-sfx="news-open" onClick={() => setShowStoryModal(true)}>경제 이야기</button>
+                    <button data-sfx="savings-open" onClick={() => setShowDonationModal(true)}>기부왕</button>
+                    <button data-sfx="news-open" onClick={() => setShowNewsModal(true)}>경제뉴스</button>
+                    <button onClick={handleLogout}>{onBackToMenu ? '메뉴로' : '로그아웃'}</button>
                 </div>
             </aside>
 

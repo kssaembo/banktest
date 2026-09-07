@@ -2204,9 +2204,6 @@ const DonationManagementView: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {donations.map(d => (
                         <div key={d.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-                            {d.imageUrl && (
-                                <img src={d.imageUrl} alt={d.title} className="w-full h-40 object-cover" referrerPolicy="no-referrer" />
-                            )}
                             <div className="p-5 flex flex-col flex-grow">
                                 <DonutCard title="전체 학생 대비 기부 참여" centerLabel="학생" data={[{name:'기부 참여',value:new Set((donationLogs[d.id]||[]).map(log=>log.user?.name)).size,details:(donationLogs[d.id]||[]).map(log=>log.user?.name).filter(Boolean)},{name:'미참여',value:Math.max(0,allStudents.length-new Set((donationLogs[d.id]||[]).map(log=>log.user?.name)).size),details:allStudents.filter(s=>!(donationLogs[d.id]||[]).some(log=>log.user?.name===s.name)).map(s=>s.name)}]}/>
                                 <div className="flex justify-between items-start mb-2 gap-2">

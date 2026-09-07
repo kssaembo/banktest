@@ -19,9 +19,8 @@
 .student-rail .student-nav-button svg { color:inherit; width:27px; height:27px; }
 .student-rail .student-nav-button[aria-current=page] { background:white; color:#175edd; box-shadow:0 4px 12px #0c46a326; }
 .student-rail .student-nav-button:not([aria-current]):hover { background:#ffffff20; }
-.student-rail-extras { border-top:1px solid #ffffff30; padding-top:10px; }
-.student-rail-extras .grid { grid-template-columns:1fr; gap:4px; }
-.student-rail-extras button { background:transparent; color:#f1f7ff; padding:7px 2px; font-size:11px; border-radius:10px; }
+.student-rail-extras { display:grid; gap:5px; border-top:1px solid #ffffff30; padding-top:9px; }
+.student-rail-extras button { min-height:34px; background:transparent; color:#f1f7ff; padding:6px 3px; font-size:11px; line-height:1.2; border-radius:10px; }
 .student-rail-extras button:hover { background:#ffffff20; color:white; }
 .student-content { background:transparent; }
 .student-main { padding:12px 2px 24px; scrollbar-gutter:stable; }
@@ -128,7 +127,7 @@
 .student-rail { height:calc(100dvh - 10.75rem); min-height:520px; border-radius:26px; }
 .student-rail > nav { min-height:0; }
 .student-rail-extras { position:sticky; bottom:0; z-index:2; padding-bottom:2px; background:linear-gradient(180deg,transparent,#165bcf 10%); }
-.student-rail-extras button { display:flex; align-items:center; justify-content:center; width:100%; border:1px solid #ffffff70; border-radius:11px; background:#ffffff18; padding:9px 3px; box-shadow:0 2px 5px #123c7015; }
+.student-rail-extras button { display:flex; align-items:center; justify-content:center; width:100%; border:1px solid #ffffff70; border-radius:11px; background:#ffffff18; box-shadow:0 2px 5px #123c7015; }
 .student-rail-extras button:hover { background:#ffffff35; }
 .student-nav-button img { width:36px; height:36px; object-fit:contain; }
 .student-studio nav.md\:hidden img { width:30px; height:30px; object-fit:contain; }

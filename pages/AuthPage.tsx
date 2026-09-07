@@ -862,7 +862,7 @@ const AuthPage: React.FC = () => {
 
 
     return (
-        <div className="auth-page flex flex-1 min-h-full bg-[#F2F4F7] items-center justify-center p-4 transition-all duration-700">
+        <div className="auth-page flex flex-1 min-h-full flex-col bg-[#F2F4F7] items-center justify-center p-4 transition-all duration-700">
             <div className="w-full max-w-[420px] text-center mb-3 md:mb-4 pt-2 md:pt-4">
                 <div className="w-12 h-12 md:w-14 md:h-14 bg-[#0066FF] rounded-[18px] flex items-center justify-center mx-auto mb-2 shadow-[0_10px_20px_rgba(0,102,255,0.22)] border-2 border-white/20">
                     <svg className="w-6 h-6 md:w-7 md:h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

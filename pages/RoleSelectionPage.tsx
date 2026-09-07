@@ -6,9 +6,10 @@ import { MainAdminIcon, MainBankIcon, MainMartIcon, StudentIcon, LogoutIcon, New
 import { EconomyReadingModal } from '../components/EconomyReadingModal';
 import { EconomyTypingModal } from '../components/EconomyTypingModal';
 import { EconomyNewsModal } from '../components/EconomyNewsModal';
+import { EconomyStoryModal } from '../components/EconomyStoryModal';
 
 interface RoleSelectionPageProps {
-  onSelect: (view: 'admin' | 'banker' | 'mart' | 'student') => void;
+  onSelect: (view: 'admin' | 'banker' | 'mart' | 'student' | 'donation') => void;
 }
 
 const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
@@ -16,6 +17,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
   const [showReadingModal, setShowReadingModal] = useState(false);
   const [showTypingModal, setShowTypingModal] = useState(false);
   const [showNewsModal, setShowNewsModal] = useState(false);
+  const [showStoryModal, setShowStoryModal] = useState(false);
 
   const roles = [
     { 
@@ -131,6 +133,25 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
           </button>
         </div>
 
+        <div className="mt-4 flex flex-col justify-center gap-4 md:flex-row">
+          <button
+            data-sfx="news-open"
+            onClick={() => setShowStoryModal(true)}
+            className="group flex w-full items-center justify-center gap-3 rounded-[26px] border border-white bg-white px-7 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-blue-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95 md:min-w-[280px] md:w-auto"
+          >
+            <img src="/design/student-page/economy-story.webp" alt="" className="h-11 w-11 object-contain" />
+            <span className="text-lg font-black text-gray-800 group-hover:text-blue-600">경제 이야기</span>
+          </button>
+          <button
+            data-sfx="savings-open"
+            onClick={() => onSelect('donation')}
+            className="group flex w-full items-center justify-center gap-3 rounded-[26px] border border-white bg-white px-7 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-pink-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95 md:min-w-[280px] md:w-auto"
+          >
+            <img src="/design/student-page/donation-king.webp" alt="" className="h-11 w-11 object-contain" />
+            <span className="text-lg font-black text-gray-800 group-hover:text-pink-600">기부왕</span>
+          </button>
+        </div>
+
         {/* 경제 뉴스 모달 */}
         <EconomyNewsModal isOpen={showNewsModal} onClose={() => setShowNewsModal(false)} />
 
@@ -139,6 +160,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
         
         {/* 경제 자판 연습 모달 */}
         <EconomyTypingModal userId={currentUser?.role==='student'?currentUser.userId:undefined} isOpen={showTypingModal} onClose={() => setShowTypingModal(false)} />
+        {currentUser && <EconomyStoryModal isOpen={showStoryModal} onClose={() => setShowStoryModal(false)} user={currentUser} />}
         
 
       </div>

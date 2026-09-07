@@ -245,7 +245,7 @@ const PosView: React.FC<{currentUser: User | null; items: MartItem[]}> = ({curre
                         onClick={() => handleStudentSelect(s)}
                         className="p-3 bg-white rounded-xl shadow-md flex flex-col items-center justify-center aspect-square hover:shadow-lg hover:bg-indigo-50 transition-all"
                     >
-                        <StudentIcon className="w-8 h-8 text-gray-500 mb-2" />
+                        <img src="/design/student-page/student-avatar-neutral.webp" alt="" className="mb-2 h-14 w-14 rounded-full bg-blue-50 object-cover ring-4 ring-blue-50" />
                         <span className="font-bold text-gray-800 text-sm">{s.name}</span>
                         <span className="font-mono text-gray-500 text-xs mt-1">
                             {(s.account?.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}
