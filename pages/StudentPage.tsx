@@ -76,8 +76,8 @@ const StudentSelectionView: React.FC<{ students: User[], onSelect: (s: User) => 
                         onClick={() => onSelect(s)}
                         className="p-4 bg-white rounded-2xl shadow-sm flex flex-col items-center justify-center aspect-square hover:shadow-xl hover:scale-105 transition-all border border-transparent hover:border-indigo-100 active:scale-95 group"
                     >
-                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mb-3 group-hover:bg-indigo-100 transition-colors">
-                             <StudentIcon className="w-7 h-7 text-indigo-500" />
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center mb-3 overflow-hidden bg-blue-50 ring-4 ring-blue-50 group-hover:ring-blue-100 transition-colors">
+                            <img src="/design/student-page/student-avatar-neutral.webp" alt="" className="h-full w-full object-cover" />
                         </div>
                         <span className="font-bold text-gray-900 text-sm truncate w-full text-center">{s.name}</span>
                         <span className="text-[10px] text-gray-400 mt-1 font-black">{s.number}번</span>
@@ -239,8 +239,8 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                 <button data-sfx="news-open" onClick={()=>onLearn('news')} className="student-learning-tile"><img src="/design/news-ai.png" alt=""/><strong>경제뉴스</strong><span>오늘의 경제 소식을<br/>쉽고 재미있게</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
                 <button data-sfx="news-open" onClick={()=>onLearn('reading')} className="student-learning-tile"><img src="/design/asset-savings.png" alt=""/><strong>경제상식</strong><span>알아두면 쓸모 있는<br/>경제 지식 배우기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
                 <button data-sfx="news-open" onClick={()=>onLearn('typing')} className="student-learning-tile"><span className="student-keyboard" aria-hidden="true"><i>ㄱ</i><i>ㄴ</i><i>ㄷ</i><i>ㄹ</i><i>ㅁ</i><i>ㅂ</i><i className="student-spacekey"/></span><strong>경제자판</strong><span>또박또박 타자로<br/>경제 용어 익히기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
-                <button data-sfx="news-open" onClick={()=>onLearn('story')} className="student-learning-tile"><span className="student-learning-symbol student-learning-symbol-story" aria-hidden="true"><svg viewBox="0 0 48 48" className="h-12 w-12 fill-none stroke-blue-700" strokeWidth="3"><path d="M8 10h24a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H20l-9 7 2-7H8a6 6 0 0 1-6-6V16a6 6 0 0 1 6-6Z"/><path d="M12 21h16M12 26h10"/></svg></span><strong>경제 이야기</strong><span>친구들과 생각을<br/>나누는 경제 이야기방</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
-                <button data-sfx="savings-open" onClick={()=>onLearn('donation')} className="student-learning-tile"><span className="student-learning-symbol student-learning-symbol-donation" aria-hidden="true"><HeartIcon className="h-12 w-12"/></span><strong>기부왕</strong><span>나눔으로 만드는<br/>따뜻한 경제 습관</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button data-sfx="news-open" onClick={()=>onLearn('story')} className="student-learning-tile"><img src="/design/student-page/economy-story.webp" alt=""/><strong>경제 이야기</strong><span>친구들과 생각을<br/>나누는 경제 이야기방</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button data-sfx="savings-open" onClick={()=>onLearn('donation')} className="student-learning-tile"><img src="/design/student-page/donation-king.webp" alt=""/><strong>기부왕</strong><span>나눔으로 만드는<br/>따뜻한 경제 습관</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
             </div></section></div>
 
             <ConfirmModal 
@@ -1394,8 +1394,8 @@ const DonationModal: React.FC<{
             <div className="bg-[#F2F4F7] w-full max-w-4xl rounded-[40px] overflow-hidden shadow-2xl flex flex-col max-h-[90vh] relative" onClick={e => e.stopPropagation()}>
                 <div className="p-6 bg-white border-b flex justify-between items-center sticky top-0 z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-pink-50 rounded-xl flex items-center justify-center">
-                            <HeartIcon className="w-6 h-6 text-pink-500" />
+                        <div className="w-11 h-11 bg-pink-50 rounded-xl flex items-center justify-center overflow-hidden">
+                            <img src="/design/student-page/donation-king.webp" alt="" className="h-full w-full object-contain" />
                         </div>
                         <h3 className="font-black text-xl text-gray-900 tracking-tight">나는야 기부왕!</h3>
                     </div>
@@ -1406,8 +1406,8 @@ const DonationModal: React.FC<{
 
                 <div className="flex-grow overflow-y-auto p-6 md:p-10">
                     <div className="bg-white p-8 rounded-[32px] border border-pink-100 flex flex-col md:flex-row items-center gap-6 mb-8">
-                        <div className="w-20 h-20 bg-pink-50 rounded-[28px] shadow-lg shadow-pink-100 flex items-center justify-center shrink-0">
-                            <HeartIcon className="w-12 h-12 text-pink-500 animate-pulse" />
+                        <div className="w-24 h-24 bg-pink-50 rounded-[28px] shadow-lg shadow-pink-100 flex items-center justify-center shrink-0 overflow-hidden">
+                            <img src="/design/student-page/donation-king.webp" alt="" className="h-full w-full object-contain" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-1">따뜻한 나눔의 시작</h2>
@@ -1606,7 +1606,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     return (
         <div className="student-studio h-full min-h-0 flex flex-col overflow-hidden">
-            <header className="student-topbar"><div className="student-brand">Class Bank<span aria-hidden="true">✦</span></div><div className="student-profile">{currentUser.role===Role.TEACHER&&activeStudent&&<button onClick={()=>{setActiveStudent(null);setAccount(null);}} className="student-pick-button rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">학생 목록</button>}<div className="student-header-guide"><EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name}/></div><span className="student-avatar"><StudentIcon className="w-6 h-6"/></span><div><span className="student-eyebrow">나의 경제 교실</span><strong>{activeStudent ? activeStudent.name : currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name}</strong></div></div></header>
+            <header className="student-topbar"><div className="student-brand">Class Bank<span aria-hidden="true">✦</span></div><div className="student-profile">{currentUser.role===Role.TEACHER&&activeStudent&&<button onClick={()=>{setActiveStudent(null);setAccount(null);}} className="student-pick-button rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">학생 목록</button>}<div className="student-header-guide"><EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name}/></div><span className="student-avatar"><img src="/design/student-page/student-avatar-neutral.webp" alt=""/></span><div><span className="student-eyebrow">나의 경제 교실</span><strong>{activeStudent ? activeStudent.name : currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name}</strong></div></div></header>
             <div className="student-workspace flex min-h-0 flex-1">
             <aside className="student-rail hidden md:flex flex-col shrink-0 z-30">
                 {(activeStudent || currentUser.role === Role.STUDENT) && (
@@ -1634,13 +1634,13 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                             경제자판
                         </button>
                     </div>
-                    <button data-sfx="news-open" onClick={() => setShowStoryModal(true)} className="flex w-full items-center justify-center rounded-2xl border border-white/50 bg-white/15 p-3 text-center text-xs font-black text-white transition-all hover:bg-white/25 active:scale-95">경제 이야기</button>
+                    <button data-sfx="news-open" onClick={() => setShowStoryModal(true)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/50 bg-white/15 p-3 text-center text-xs font-black text-white transition-all hover:bg-white/25 active:scale-95"><img src="/design/student-page/economy-story.webp" alt="" className="h-6 w-6 object-contain"/>경제 이야기</button>
                     <div className="grid grid-cols-2 gap-2">
                         <button 
                             onClick={() => setShowDonationModal(true)} 
                             className="flex items-center justify-center p-3.5 bg-pink-50 text-pink-700 rounded-2xl font-black text-xs hover:bg-pink-100 hover:scale-[1.02] active:scale-95 transition-all text-center"
                         >
-                            기부왕
+                            <img src="/design/student-page/donation-king.webp" alt="" className="h-6 w-6 object-contain"/>기부왕
                         </button>
                         <button 
                             data-sfx="news-open" onClick={() => setShowNewsModal(true)} 
