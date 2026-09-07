@@ -1,0 +1,13 @@
+const {chromium}=require('C:/Users/sinjo/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+(async()=>{
+ const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+ const page=await browser.newPage({viewport:{width:1366,height:768}}); const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:3002'); await page.evaluate(()=>{localStorage.setItem('class_bank_demo_user_id','guest_student_1');localStorage.setItem('class_bank_student_view_guest_student_1','home')}); await page.reload();
+ await page.getByText('경제 학습 바로가기',{exact:true}).waitFor(); await page.waitForTimeout(500);
+ const check=()=>page.evaluate(()=>({viewport:[innerWidth,innerHeight],bodyHeight:document.body.scrollHeight,frameHeight:Math.round(document.querySelector('.app-frame').getBoundingClientRect().height),frameBottom:Math.round(document.querySelector('.app-frame').getBoundingClientRect().bottom),railBottom:Math.round(document.querySelector('.student-rail').getBoundingClientRect().bottom),storyButtons:[...document.querySelectorAll('button')].filter(e=>e.textContent.includes('경제 이야기')).length,horizontal:document.documentElement.scrollWidth-innerWidth}));
+ console.log('student-tablet',await check()); await page.screenshot({path:'../output/student-layout-tablet.png',fullPage:true});
+ await page.getByRole('button',{name:/경제 이야기/}).first().click(); await page.getByRole('heading',{name:'경제 이야기',exact:true}).waitFor(); console.log('story-open',await page.getByText('생각을 나누는 우리 반 경제 게시판').isVisible()); await page.locator('section > header button').click();
+ await page.setViewportSize({width:1280,height:800}); await page.evaluate(()=>{localStorage.setItem('class_bank_demo_user_id','guest_teacher');localStorage.removeItem('class_bank_demo_user_id_snapshot');localStorage.setItem('class_bank_teacher_active_view_guest_teacher','admin')}); await page.reload(); await page.locator('.teacher-workbench').waitFor();
+ const teacher=await page.evaluate(()=>({viewport:[innerWidth,innerHeight],bodyHeight:document.body.scrollHeight,frameBottom:Math.round(document.querySelector('.app-frame').getBoundingClientRect().bottom),sidebarBottom:Math.round(document.querySelector('.teacher-sidebar').getBoundingClientRect().bottom),horizontal:document.documentElement.scrollWidth-innerWidth})); console.log('teacher-pc',teacher); await page.screenshot({path:'../output/teacher-layout-pc.png',fullPage:true});
+ if(errors.length) throw new Error(errors.join('\n')); await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

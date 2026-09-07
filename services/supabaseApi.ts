@@ -1154,6 +1154,33 @@ async function deleteDonation(donationId: string): Promise<void> {
     handleSupabaseError(error, 'deleteDonation');
 }
 
+async function getEconomyStories(teacherId: string): Promise<any[]> {
+    const { data, error } = await supabase.rpc('get_economy_story_topics', { p_teacher: teacherId });
+    handleSupabaseError(error, 'getEconomyStories');
+    return (data || []).map((row: any) => ({ id: row.id, title: row.title, prompt: row.prompt, isOpen: row.is_open, createdAt: row.created_at, commentCount: Number(row.comment_count || 0) }));
+}
+
+async function createEconomyStory(teacherId: string, title: string, prompt: string): Promise<void> {
+    const { error } = await supabase.rpc('create_economy_story', { p_teacher: teacherId, p_title: title, p_prompt: prompt });
+    handleSupabaseError(error, 'createEconomyStory');
+}
+
+async function setEconomyStoryStatus(teacherId: string, topicId: string, isOpen: boolean): Promise<void> {
+    const { error } = await supabase.rpc('set_economy_story_status', { p_teacher: teacherId, p_topic: topicId, p_is_open: isOpen });
+    handleSupabaseError(error, 'setEconomyStoryStatus');
+}
+
+async function getEconomyStoryComments(topicId: string): Promise<any[]> {
+    const { data, error } = await supabase.rpc('get_economy_story_comments', { p_topic: topicId });
+    handleSupabaseError(error, 'getEconomyStoryComments');
+    return (data || []).map((row: any) => ({ id: row.id, content: row.content, createdAt: row.created_at, userName: row.user_name, userNumber: row.user_number }));
+}
+
+async function addEconomyStoryComment(topicId: string, studentId: string, content: string): Promise<void> {
+    const { error } = await supabase.rpc('add_economy_story_comment', { p_topic: topicId, p_student: studentId, p_content: content });
+    handleSupabaseError(error, 'addEconomyStoryComment');
+}
+
 async function getMartItems(teacherId: string) {
     const { data, error } = await supabase.from('mart_items').select('*').eq('teacher_id', teacherId).order('sort_order').order('created_at');
     handleSupabaseError(error, 'getMartItems');
@@ -1189,6 +1216,7 @@ const baseApi = {
     getTaxes, createTax, deleteTax, getMyUnpaidTaxes, payTax, getFunds, createFund, deleteFund, joinFund, settleFund, getMyFundInvestments,
     getFundInvestors, issueCurrency, deleteTeacherAccount, getDailyTreasuryTotals,
     getDonations, createDonation, closeDonation, donate, updateDonation, getDonationLogs, getStockTransactions, deleteDonation,
+    getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment,
     getMartItems, addMartItem, updateMartItem, deleteMartItem
 };
 

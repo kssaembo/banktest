@@ -44,6 +44,9 @@
 .student-learning-tile { display:flex; min-width:0; flex-direction:column; align-items:center; text-align:center; padding:15px 7px 12px; background:linear-gradient(150deg,#f7fbff,#eaf3ff); border:1px solid #d4e6ff; border-radius:19px; transition:background .15s,transform .15s,box-shadow .15s; }
 .student-learning-tile:hover { transform:translateY(-3px); background:#e5f0ff; box-shadow:0 8px 18px #2367ba18; }
 .student-learning-tile img { width:84px; height:84px; object-fit:contain; margin-bottom:12px; }
+.student-learning-symbol { display:flex; width:84px; height:84px; align-items:center; justify-content:center; margin-bottom:12px; border-radius:26px; font-size:38px; box-shadow:inset 0 1px 0 #fff,0 7px 16px #244d8c18; }
+.student-learning-symbol-story { background:linear-gradient(145deg,#dbeafe,#bfdbfe); }
+.student-learning-symbol-donation { background:linear-gradient(145deg,#ffe4e6,#fecdd3); color:#e11d48; }
 .student-learning-tile strong { font-size:15px; color:#173b70; }
 .student-learning-tile > span:not(.student-keyboard) { font-size:11px; line-height:1.65; color:#526d90; margin-top:7px; }
 .student-learning-tile .student-tile-arrow { display:flex; align-items:center; justify-content:center; border-radius:50%; background:white; width:26px; height:26px; color:#2563eb; }
@@ -105,20 +108,25 @@
 .teacher-sidebar .teacher-nav-button > div { width:36px; height:36px; }
 .teacher-sidebar .teacher-nav-button img { width:34px; height:34px; }
 .teacher-workbench nav img { object-fit:contain; }
-/* The document owns page scrolling. Dialogs and explicitly bounded logs keep local scrolling. */
-.app-shell { height:auto; min-height:100dvh; overflow:visible; }
-.app-frame { height:auto; min-height:calc(100dvh - 2rem); overflow:visible; }
-.role-host,.role-host-content { height:auto; min-height:inherit; overflow:visible; }
-.role-workspace { height:auto; min-height:calc(100dvh - 2rem); align-items:stretch; }
+/* The document owns page scrolling. Every workspace still fills the visible PC/tablet canvas. */
+.app-shell { min-height:100dvh; overflow:visible; }
+.app-frame { min-height:calc(100dvh - 2rem); overflow:clip; }
+.app-frame > * { min-height:inherit; }
+.auth-page { min-height:inherit; border-radius:inherit; }
+.role-host,.role-host-content { min-height:inherit; overflow:visible; }
+.role-workspace { min-height:calc(100dvh - 2rem); align-items:stretch; border-radius:inherit; }
 .role-workspace > div { height:auto; min-width:0; overflow:visible; }
 .role-workspace > div > main { height:auto; flex:1; overflow:visible; }
-.role-workspace > aside { overflow:visible; }
+.role-workspace > aside { overflow:visible; border-radius:28px 0 0 28px; }
 .role-workspace > div > main > .h-full { height:auto; }
-.student-studio { height:auto; min-height:calc(100dvh - 2rem); overflow:visible; border-radius:28px; }
-.student-workspace { min-height:640px; }
+.student-studio { min-height:calc(100dvh - 2rem); overflow:visible; border-radius:inherit; }
+.student-workspace { min-height:0; align-items:stretch; }
 .student-content { height:auto; overflow:visible; }
 .student-main { overflow:visible; height:auto; }
-.student-rail { overflow:visible; }
+.student-rail,.teacher-sidebar,.role-sidebar { position:sticky; top:1rem; height:calc(100dvh - 2rem); align-self:flex-start; overflow-y:auto!important; overscroll-behavior:contain; }
+.student-rail { height:calc(100dvh - 10.75rem); min-height:520px; border-radius:26px; }
+.student-rail > nav { min-height:0; }
+.student-rail-extras { position:sticky; bottom:0; z-index:2; padding-bottom:2px; background:linear-gradient(180deg,transparent,#165bcf 10%); }
 .student-rail-extras button { display:flex; align-items:center; justify-content:center; width:100%; border:1px solid #ffffff70; border-radius:11px; background:#ffffff18; padding:9px 3px; box-shadow:0 2px 5px #123c7015; }
 .student-rail-extras button:hover { background:#ffffff35; }
 .student-nav-button img { width:36px; height:36px; object-fit:contain; }
@@ -138,17 +146,19 @@
  .student-workspace { min-height:0; }
  .student-topbar { flex-wrap:wrap; }
  .student-profile { margin-left:auto; }
- .student-studio { border-radius:0; }
+ .app-frame { min-height:calc(100dvh - 1rem); }
+ .role-workspace,.student-studio { min-height:calc(100dvh - 1rem); border-radius:22px; }
+ .student-studio { overflow:clip; }
  .student-pick-button { white-space:nowrap; }
  .mart-total-panel { min-height:160px; }
 }
 .mart-workspace aside nav img { width:30px; height:30px; object-fit:contain; }
 
 /* Only the outer shell reserves viewport space. */
-.app-frame{flex:1;min-height:0}
-.role-host,.role-host-content,.role-workspace{flex:1;min-height:0}
-.student-studio{flex:1;min-height:0}
-.student-workspace{min-height:0}
+.app-frame{flex:1}
+.role-host,.role-host-content,.role-workspace{flex:1}
+.student-studio{flex:1}
+.banker-workspace main,.mart-workspace main{background:linear-gradient(145deg,#f4f9ff,#eaf3ff)!important}
 .recharts-tooltip-wrapper{z-index:30!important}
 .recharts-sector:focus:not(:focus-visible),.recharts-surface:focus:not(:focus-visible),.recharts-layer:focus:not(:focus-visible){outline:none}
 .recharts-sector:focus-visible{outline:2px solid #2563eb;outline-offset:3px}

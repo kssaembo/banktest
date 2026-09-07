@@ -18,11 +18,12 @@ import { EconomyReadingModal } from '../components/EconomyReadingModal';
 import { EconomyTypingModal } from '../components/EconomyTypingModal';
 import { EconomyTutorialLauncher } from '../components/EconomyTutorialModal';
 import { EconomyNewsModal } from '../components/EconomyNewsModal';
+import { EconomyStoryModal } from '../components/EconomyStoryModal';
 import { FeatureGuide } from '../components/FeatureGuide';
 import { ChartModal, DonutCard, TrendChart } from '../components/VisualAnalytics';
 
 type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds';
-type LearningSection = 'news' | 'reading' | 'typing';
+type LearningSection = 'news' | 'reading' | 'typing' | 'donation' | 'story';
 type NotificationType = { type: 'success' | 'error', text: string };
 
 interface StudentPageProps {
@@ -238,6 +239,8 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                 <button data-sfx="news-open" onClick={()=>onLearn('news')} className="student-learning-tile"><img src="/design/news-ai.png" alt=""/><strong>경제뉴스</strong><span>오늘의 경제 소식을<br/>쉽고 재미있게</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
                 <button data-sfx="news-open" onClick={()=>onLearn('reading')} className="student-learning-tile"><img src="/design/asset-savings.png" alt=""/><strong>경제상식</strong><span>알아두면 쓸모 있는<br/>경제 지식 배우기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
                 <button data-sfx="news-open" onClick={()=>onLearn('typing')} className="student-learning-tile"><span className="student-keyboard" aria-hidden="true"><i>ㄱ</i><i>ㄴ</i><i>ㄷ</i><i>ㄹ</i><i>ㅁ</i><i>ㅂ</i><i className="student-spacekey"/></span><strong>경제자판</strong><span>또박또박 타자로<br/>경제 용어 익히기</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button data-sfx="news-open" onClick={()=>onLearn('story')} className="student-learning-tile"><span className="student-learning-symbol student-learning-symbol-story" aria-hidden="true"><svg viewBox="0 0 48 48" className="h-12 w-12 fill-none stroke-blue-700" strokeWidth="3"><path d="M8 10h24a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H20l-9 7 2-7H8a6 6 0 0 1-6-6V16a6 6 0 0 1 6-6Z"/><path d="M12 21h16M12 26h10"/></svg></span><strong>경제 이야기</strong><span>친구들과 생각을<br/>나누는 경제 이야기방</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
+                <button data-sfx="savings-open" onClick={()=>onLearn('donation')} className="student-learning-tile"><span className="student-learning-symbol student-learning-symbol-donation" aria-hidden="true"><HeartIcon className="h-12 w-12"/></span><strong>기부왕</strong><span>나눔으로 만드는<br/>따뜻한 경제 습관</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
             </div></section></div>
 
             <ConfirmModal 
@@ -1528,6 +1531,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     const [showReadingModal, setShowReadingModal] = useState(false);
     const [showTypingModal, setShowTypingModal] = useState(false);
     const [showNewsModal, setShowNewsModal] = useState(false);
+    const [showStoryModal, setShowStoryModal] = useState(false);
     const [account, setAccount] = useState<Account | null>(null);
     const [notification, setNotification] = useState<NotificationType | null>(null);
     useEffect(()=>{if(notification?.type==='error')playSound('error-soft');},[notification]);
@@ -1591,12 +1595,12 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
         if (!account) return <div className="text-center py-20 font-black text-gray-400">계좌 정보가 없습니다.</div>;
 
         switch (view) {
-            case 'home': return <HomeView onLearn={section => section === 'news' ? setShowNewsModal(true) : section === 'reading' ? setShowReadingModal(true) : setShowTypingModal(true)} account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
+            case 'home': return <HomeView onLearn={section => section === 'news' ? setShowNewsModal(true) : section === 'reading' ? setShowReadingModal(true) : section === 'typing' ? setShowTypingModal(true) : section === 'story' ? setShowStoryModal(true) : setShowDonationModal(true)} account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'transfer': return <TransferView currentUser={{...effectiveUser, currencyUnit: currentUnit}} account={account} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'stocks': return <StocksView currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'savings': return <SavingsView currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'funds': return <FundView currentUser={{...effectiveUser, currencyUnit: currentUnit}} students={students} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
-            default: return <HomeView onLearn={section => section === 'news' ? setShowNewsModal(true) : section === 'reading' ? setShowReadingModal(true) : setShowTypingModal(true)} account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
+            default: return <HomeView onLearn={section => section === 'news' ? setShowNewsModal(true) : section === 'reading' ? setShowReadingModal(true) : section === 'typing' ? setShowTypingModal(true) : section === 'story' ? setShowStoryModal(true) : setShowDonationModal(true)} account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
         }
     };
 
@@ -1630,6 +1634,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                             경제자판
                         </button>
                     </div>
+                    <button data-sfx="news-open" onClick={() => setShowStoryModal(true)} className="flex w-full items-center justify-center rounded-2xl border border-white/50 bg-white/15 p-3 text-center text-xs font-black text-white transition-all hover:bg-white/25 active:scale-95">경제 이야기</button>
                     <div className="grid grid-cols-2 gap-2">
                         <button 
                             onClick={() => setShowDonationModal(true)} 
@@ -1719,12 +1724,13 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 onClose={() => setShowTypingModal(false)}
             />
 
-            <EconomyNewsModal 
+            <EconomyNewsModal
                 isOpen={showNewsModal}
                 onClose={() => setShowNewsModal(false)}
                 user={{...effectiveUser, currencyUnit: currentUnit}}
                 onBalanceChanged={refreshAccount}
             />
+            <EconomyStoryModal isOpen={showStoryModal} onClose={() => setShowStoryModal(false)} user={{...effectiveUser, currencyUnit: currentUnit}} />
 
             {notification && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[200] p-4 animate-fadeIn" onClick={() => setNotification(null)}>

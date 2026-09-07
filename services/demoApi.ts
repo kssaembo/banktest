@@ -8,6 +8,8 @@ const durableStorage: Storage = typeof localStorage !== 'undefined' ? localStora
 const teacher = 'guest_teacher';
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
+let demoStories: any[] = [{ id: 'demo-story-1', title: '용돈이 생기면 어떻게 나눌까요?', prompt: '저축, 소비, 기부 중 무엇을 먼저 할지와 그 이유를 이야기해 보세요.', isOpen: true, createdAt: now(), commentCount: 0 }];
+let demoStoryComments: Record<string, any[]> = {};
 type State = ReturnType<typeof createDefaultMockState>;
 let state: State;
 function fresh(): State { return createDefaultMockState(); }
@@ -226,6 +228,19 @@ const local: LocalApi = {
   updateDonation: (did, title, url, content, imageUrl) => { Object.assign(required(state.donations.find(d => d.id === did)), { title, url, content, imageUrl }); },
   getDonationLogs: did => state.donationLogs.filter(d => d.donation_id === did).map(d => ({ ...d, user: { name: d.user_name, number: d.user_number } })),
   deleteDonation: did => { state.donations = state.donations.filter(d => d.id !== did); state.donationLogs = state.donationLogs.filter(d => d.donation_id !== did); },
+  getEconomyStories: () => demoStories,
+  createEconomyStory: (_tid, title, prompt) => { demoStories.unshift({ id: id(), title, prompt, isOpen: true, createdAt: now(), commentCount: 0 }); },
+  setEconomyStoryStatus: (_tid, topicId, isOpen) => { required(demoStories.find(t => t.id === topicId)).isOpen = isOpen; },
+  getEconomyStoryComments: topicId => demoStoryComments[topicId] || [],
+  addEconomyStoryComment: (topicId, studentId, content) => {
+    const topic = required(demoStories.find(t => t.id === topicId));
+    if (!topic.isOpen) throw new Error('종료된 이야기입니다.');
+    const rows = demoStoryComments[topicId] ||= [];
+    const existing = rows.find(row => row.studentId === studentId);
+    if (existing) Object.assign(existing, { content, createdAt: now() });
+    else rows.unshift({ id: id(), studentId, content, createdAt: now(), userName: user(studentId)?.name || '학생', userNumber: user(studentId)?.number });
+    topic.commentCount = rows.length;
+  },
   getMartItems: tid => state.martItems.filter(item => item.teacher_id === tid).sort((a, b) => a.sort_order - b.sort_order),
   addMartItem: (tid, input) => {
     positive(input.price);

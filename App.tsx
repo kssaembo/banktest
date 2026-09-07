@@ -212,12 +212,12 @@ const App: React.FC = () => {
 
   return (
     <AuthContext.Provider value={authContextValue}>
-      <div className="app-shell min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0,transparent_42%),#eef3f9] md:p-4 flex flex-col items-center">
+      <div className="app-shell min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe_0,transparent_42%),#eef3f9] p-2 md:p-4 flex flex-col items-center">
         {isDemo && <div className="w-full md:max-w-5xl bg-amber-100 text-amber-950 px-4 py-2 text-sm flex justify-between items-center gap-3" role="status">
           <span>가상 학급 · 실제 계좌와 연결되지 않음</span>
           <button className="font-bold underline shrink-0" onClick={() => { sessionStorage.removeItem(sessionKey); setCurrentUser(null); }}>계정 선택</button>
         </div>}
-        <div className="app-frame w-full md:max-w-6xl bg-white md:rounded-[28px] shadow-xl flex flex-col">
+        <div className="app-frame w-full md:max-w-6xl bg-white rounded-[24px] md:rounded-[30px] shadow-xl flex flex-col overflow-clip">
           {restoringSession ? <div className="flex h-full flex-col items-center justify-center gap-4 text-gray-600"><div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600"/><p className="font-bold">이전 화면을 복원하는 중...</p></div> : <AppContent />}
         </div>
       </div>

@@ -33,9 +33,9 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
     };
 
     return (
-        <div className="role-workspace banker-workspace flex h-full bg-gray-50">
+        <div className="role-workspace banker-workspace flex h-full bg-blue-50/60">
             {/* Sidebar for Desktop */}
-            <aside className="hidden md:flex flex-col w-56 bg-white/80 backdrop-blur-sm border-r p-4">
+            <aside className="role-sidebar hidden md:flex flex-col w-56 bg-white/90 backdrop-blur-sm border-r border-blue-100 p-4">
                 <div className="px-2">
                     <h1 className="text-xl font-bold text-gray-800">은행원 모드</h1>
                     <p className="text-sm text-gray-500">{currentUser?.name}</p>
@@ -66,7 +66,7 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
                     </button>
                 </header>
 
-                <main className="flex-grow overflow-y-auto p-4 bg-[#D1D3D8]">
+                <main className="flex-grow overflow-y-auto p-4 md:p-6 bg-[#EFF6FF]">
                     {renderView()}
                 </main>
 

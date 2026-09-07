@@ -93,9 +93,9 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
     };
 
     return (
-        <div className="role-workspace mart-workspace flex h-full bg-gray-100">
+        <div className="role-workspace mart-workspace flex h-full bg-blue-50/60">
             {/* Sidebar for Desktop */}
-            <aside className="hidden md:flex w-56 shrink-0 flex-col bg-white/80 backdrop-blur-sm border-r p-4">
+            <aside className="role-sidebar hidden md:flex w-56 shrink-0 flex-col bg-white/90 backdrop-blur-sm border-r border-blue-100 p-4">
                 <div className="px-2">
                     <h1 className="text-xl font-bold text-gray-800">마트 모드</h1>
                     <p className="text-sm text-gray-500">{currentUser?.name}</p>
@@ -127,8 +127,8 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                     </button>
                 </header>
 
-                <main className="flex-grow overflow-y-auto bg-[#D1D3D8]">
-                    <div className="flex flex-wrap items-center gap-3 bg-[#D1D3D8] px-4 pt-4"><h2 className="text-2xl font-black text-slate-800">{view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'}</h2><FeatureGuide title={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} label={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} items={[
+                <main className="flex-grow overflow-y-auto bg-[#EFF6FF]">
+                    <div className="flex flex-wrap items-center gap-3 bg-transparent px-4 pt-4"><h2 className="text-2xl font-black text-slate-800">{view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'}</h2><FeatureGuide title={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} label={`${view==='pos'?'마트 계산대':view==='items'?'상품/서비스 관리':view==='transfer'?'마트 송금':'마트 세부내역'} 사용 안내`} items={[
                         { title: '상품/서비스를 준비해요', description: '상품/서비스 관리에서 자주 판매하는 상품과 가격을 등록합니다.' },
                         { title: '계산대에서 선택해요', description: '학생을 고른 뒤 상품을 누르면 합계가 자동으로 입력됩니다. 금액을 직접 입력할 수도 있습니다.' },
                         { title: '거래를 확인해요', description: '결제 후 세부내역에서 금액과 시간을 확인하고, 송금 탭에서 마트 잔액을 이동합니다.' }

@@ -25,6 +25,27 @@ const getQrBaseUrl = () => {
     return (configuredUrl || window.location.origin).replace(/\/$/, '');
 };
 
+const optimizeDonationImage = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) return reject(new Error('이미지 파일만 업로드할 수 있습니다.'));
+    if (file.size > 12 * 1024 * 1024) return reject(new Error('원본 이미지는 12MB 이하로 선택해주세요.'));
+    const image = new Image();
+    const source = URL.createObjectURL(file);
+    image.onload = () => {
+        const maxWidth = 1280, maxHeight = 800;
+        const scale = Math.min(1, maxWidth / image.width, maxHeight / image.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.getContext('2d')?.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(source);
+        const value = canvas.toDataURL('image/webp', .78);
+        if (value.length > 900_000) reject(new Error('변환된 이미지가 큽니다. 더 작은 이미지를 선택해주세요.'));
+        else resolve(value);
+    };
+    image.onerror = () => { URL.revokeObjectURL(source); reject(new Error('이미지를 읽을 수 없습니다.')); };
+    image.src = source;
+});
+
 const getDDay = (targetDateStr: string) => {
     const target = new Date(targetDateStr);
     target.setHours(0,0,0,0);
@@ -1844,6 +1865,7 @@ const AddDonationModal: React.FC<{ onClose: () => void, onComplete: () => void }
     const [content, setContent] = useState('');
     const [imageUrl, setImageUrl] = useState('');
     const [loading, setLoading] = useState(false);
+    const [imageError, setImageError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1902,14 +1924,11 @@ const AddDonationModal: React.FC<{ onClose: () => void, onComplete: () => void }
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-black text-gray-700 mb-1 uppercase">이미지 URL (선택)</label>
-                        <input 
-                            type="url" 
-                            value={imageUrl} 
-                            onChange={e => setImageUrl(e.target.value)} 
-                            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-200 outline-none font-bold" 
-                            placeholder="https://... (이미지 주소)"
-                        />
+                        <label className="block text-xs font-black text-gray-700 mb-1 uppercase">대표 이미지 업로드 (선택)</label>
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;setImageError('');try{setImageUrl(await optimizeDonationImage(file));}catch(error:any){setImageError(error.message);}}} className="w-full rounded-xl border border-dashed border-pink-200 bg-pink-50/50 p-3 text-xs font-bold text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-pink-600 file:px-3 file:py-2 file:font-black file:text-white"/>
+                        <p className="mt-1 text-[10px] font-bold text-gray-400">JPG·PNG·WebP, 원본 12MB 이하 · 업로드 시 자동으로 가볍게 변환됩니다.</p>
+                        {imageUrl&&<img src={imageUrl} alt="기부 대표 이미지 미리보기" className="mt-3 h-28 w-full rounded-xl object-cover"/>}
+                        {imageError&&<p className="mt-2 text-xs font-bold text-red-600">{imageError}</p>}
                     </div>
                     <button 
                         type="submit" 
@@ -1930,6 +1949,7 @@ const EditDonationModal: React.FC<{ donation: Donation, onClose: () => void, onC
     const [content, setContent] = useState(donation.content);
     const [imageUrl, setImageUrl] = useState(donation.imageUrl || '');
     const [loading, setLoading] = useState(false);
+    const [imageError, setImageError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1983,13 +2003,11 @@ const EditDonationModal: React.FC<{ donation: Donation, onClose: () => void, onC
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-black text-gray-700 mb-1 uppercase">이미지 URL (선택)</label>
-                        <input 
-                            type="url" 
-                            value={imageUrl} 
-                            onChange={e => setImageUrl(e.target.value)} 
-                            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-200 outline-none font-bold" 
-                        />
+                        <label className="block text-xs font-black text-gray-700 mb-1 uppercase">대표 이미지 변경 (선택)</label>
+                        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={async e=>{const file=e.target.files?.[0];if(!file)return;setImageError('');try{setImageUrl(await optimizeDonationImage(file));}catch(error:any){setImageError(error.message);}}} className="w-full rounded-xl border border-dashed border-indigo-200 bg-indigo-50/50 p-3 text-xs font-bold text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-2 file:font-black file:text-white"/>
+                        <p className="mt-1 text-[10px] font-bold text-gray-400">새 파일을 고르지 않으면 기존 이미지를 유지합니다.</p>
+                        {imageUrl&&<img src={imageUrl} alt="기부 대표 이미지 미리보기" className="mt-3 h-28 w-full rounded-xl object-cover"/>}
+                        {imageError&&<p className="mt-2 text-xs font-bold text-red-600">{imageError}</p>}
                     </div>
                     <button 
                         type="submit" 
