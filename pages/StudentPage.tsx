@@ -1626,11 +1626,6 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 )}
 
                 <div className="student-rail-extras mt-auto">
-                    <button data-sfx="news-open" onClick={() => setShowReadingModal(true)}>경제상식</button>
-                    <button data-sfx="news-open" onClick={() => setShowTypingModal(true)}>경제자판</button>
-                    <button data-sfx="news-open" onClick={() => setShowStoryModal(true)}>경제 이야기</button>
-                    <button data-sfx="savings-open" onClick={() => setShowDonationModal(true)}>기부왕</button>
-                    <button data-sfx="news-open" onClick={() => setShowNewsModal(true)}>경제뉴스</button>
                     <button onClick={handleLogout}>{onBackToMenu ? '메뉴로' : '로그아웃'}</button>
                 </div>
             </aside>
