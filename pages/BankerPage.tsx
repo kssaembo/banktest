@@ -139,7 +139,7 @@ const DepositWithdrawView: React.FC = () => {
                                 <td className="p-2">{s.grade}-{s.class} {s.number}</td>
                                 <td className="p-2 font-medium">{s.name}</td>
                                 <td className="p-2 font-mono text-xs">{s.account?.accountId.split(' ').pop()}</td>
-                                <td className="p-2 text-right font-bold text-indigo-700 whitespace-nowrap">{(s.account?.balance ?? 0).toLocaleString()} {unit}</td>
+                                <td className="p-2 text-right font-bold text-indigo-700 whitespace-nowrap">{(s.account?.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} {unit}</td>
                                 <td className="p-2 text-center">
                                     <div className="flex justify-center gap-2">
                                         <button onClick={() => { setSelectedStudent(s); setMode('deposit'); }} className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 text-base whitespace-nowrap">입금</button>

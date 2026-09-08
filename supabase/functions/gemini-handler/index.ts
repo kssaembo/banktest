@@ -49,9 +49,8 @@ serve(async (req) => {
     let responseSchema: any = null;
 
     if (action === 'recommend_news') {
-      // Truncate raw news list to prevent payload bloat
-      const rawNewsList = JSON.stringify(payload.rawNews).substring(0, 5000);
-      prompt = `당신은 초등 경제 전문 에디터입니다. 아래 제공된 뉴스 목록을 보고, 초등학생(4-6학년)이 반드시 알아야 할 경제 뉴스 10개를 골라 각색하세요.\n\n[뉴스 목록]\n${rawNewsList}`;
+      const rawNewsList = JSON.stringify(payload.rawNews).substring(0, 24000);
+      prompt = `당신은 초등 경제 전문 에디터입니다. 아래 뉴스 중 원문 본문(originalContent)이 충분한 기사 최대 5개를 고르세요. 각 content는 원문의 핵심 사실·수치·원인·결과를 빠뜨리지 말고 원문 정보량의 약 60~70%(약 2/3)가 남도록 800~1,400자, 6~12개 짧은 문단으로 작성하세요. 문장을 초등 4~6학년이 이해할 표현으로 순화하되 지나치게 요약하거나 새로운 사실을 만들지 마세요. 원문 문장을 길게 복제하지 말고 반드시 새 문장으로 바꾸세요. 원문이 부족한 기사는 description을 근거로 짧게 추측해 늘리지 말고 제외하세요. title은 어린이용으로 자연스럽게 다듬고 url과 핵심 keywords 2~4개를 유지하세요.\n\n[뉴스 목록]\n${rawNewsList}`;
       responseSchema = {
         type: Type.ARRAY,
         items: {

@@ -1692,6 +1692,8 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
             <EconomyReadingModal 
                 isOpen={showReadingModal}
                 onClose={() => setShowReadingModal(false)}
+                user={{...effectiveUser, currencyUnit: currentUnit}}
+                onBalanceChanged={refreshAccount}
             />
 
             <EconomyTypingModal key={effectiveUser.userId} userId={effectiveUser.role===Role.STUDENT?effectiveUser.userId:undefined}

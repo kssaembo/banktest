@@ -241,6 +241,16 @@ const local: LocalApi = {
     else rows.unshift({ id: id(), studentId, content, createdAt: now(), userName: user(studentId)?.name || '학생', userNumber: user(studentId)?.number });
     topic.commentCount = rows.length;
   },
+  rewardEconomyStoryComments: (_teacherId, commentIds, amount) => {
+    positive(amount);
+    let rewarded = 0;
+    Object.values(demoStoryComments).flat().forEach(comment => {
+      if (commentIds.includes(comment.id) && !comment.rewardedAt) {
+        comment.rewardedAt = now(); comment.rewardAmount = money(amount); rewarded += 1;
+      }
+    });
+    return { rewarded, total: money(rewarded * amount) };
+  },
   getMartItems: tid => state.martItems.filter(item => item.teacher_id === tid).sort((a, b) => a.sort_order - b.sort_order),
   addMartItem: (tid, input) => {
     positive(input.price);

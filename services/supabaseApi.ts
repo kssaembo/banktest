@@ -1173,12 +1173,18 @@ async function setEconomyStoryStatus(teacherId: string, topicId: string, isOpen:
 async function getEconomyStoryComments(topicId: string): Promise<any[]> {
     const { data, error } = await supabase.rpc('get_economy_story_comments', { p_topic: topicId });
     handleSupabaseError(error, 'getEconomyStoryComments');
-    return (data || []).map((row: any) => ({ id: row.id, content: row.content, createdAt: row.created_at, userName: row.user_name, userNumber: row.user_number }));
+    return (data || []).map((row: any) => ({ id: row.id, content: row.content, createdAt: row.created_at, userId: row.student_id, userName: row.user_name, userNumber: row.user_number, rewardedAt: row.rewarded_at, rewardAmount: Number(row.reward_amount || 0) }));
 }
 
 async function addEconomyStoryComment(topicId: string, studentId: string, content: string): Promise<void> {
     const { error } = await supabase.rpc('add_economy_story_comment', { p_topic: topicId, p_student: studentId, p_content: content });
     handleSupabaseError(error, 'addEconomyStoryComment');
+}
+
+async function rewardEconomyStoryComments(teacherId: string, commentIds: string[], amount: number): Promise<{ rewarded: number; total: number }> {
+    const { data, error } = await supabase.rpc('reward_economy_story_comments', { p_teacher: teacherId, p_comments: commentIds, p_amount: amount });
+    handleSupabaseError(error, 'rewardEconomyStoryComments');
+    return { rewarded: Number(data?.rewarded || 0), total: Number(data?.total || 0) };
 }
 
 async function getMartItems(teacherId: string) {
@@ -1216,7 +1222,7 @@ const baseApi = {
     getTaxes, createTax, deleteTax, getMyUnpaidTaxes, payTax, getFunds, createFund, deleteFund, joinFund, settleFund, getMyFundInvestments,
     getFundInvestors, issueCurrency, deleteTeacherAccount, getDailyTreasuryTotals,
     getDonations, createDonation, closeDonation, donate, updateDonation, getDonationLogs, getStockTransactions, deleteDonation,
-    getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment,
+    getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment, rewardEconomyStoryComments,
     getMartItems, addMartItem, updateMartItem, deleteMartItem
 };
 
