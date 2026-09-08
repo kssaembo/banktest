@@ -1,0 +1,33 @@
+{
+  "id": "/",
+  "name": "Class Bank",
+  "short_name": "Class Bank",
+  "description": "우리 학급만의 특별한 경제활동 시스템",
+  "lang": "ko-KR",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eaf3ff",
+  "theme_color": "#256ceb",
+  "categories": ["education", "finance"],
+  "icons": [
+    {
+      "src": "/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import {RewardAnimation} from './LearningRewards';
 import React, { useEffect, useState } from 'react';
+import PwaInstallButton from './PwaInstallButton';
 
 import {SOUND_KEY,playSound,playButtonSound,stopSounds} from '../services/sounds';
 
@@ -30,6 +31,7 @@ export default function GlobalExperience({ children }: { children: React.ReactNo
 
   return <>
     {children}<RewardAnimation/>
+    <PwaInstallButton />
     <button type="button" onClick={toggleSound} aria-label={soundEnabled ? '버튼 효과음 끄기' : '버튼 효과음 켜기'} title={soundEnabled ? '효과음 켜짐' : '효과음 꺼짐'} className="fixed right-4 bottom-20 md:bottom-4 z-[240] w-11 h-11 rounded-full bg-white/95 border border-blue-100 shadow-lg text-xl hover:bg-blue-50 active:scale-95">
       {soundEnabled ? '🔊' : '🔇'}
     </button>
