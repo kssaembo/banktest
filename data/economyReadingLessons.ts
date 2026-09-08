@@ -1,3 +1,5 @@
+import { additionalEconomyReadingLessons } from './economyReadingLessonsAdditional';
+
 export type LessonChoice = { label: string; feedback: string };
 export type LessonSlide = {
   title: string;
@@ -154,5 +156,8 @@ export const economyReadingLessons: EconomyLesson[] = [
     quiz:[quiz('금융 사기의 흔한 특징은?',['급하게 판단하도록 압박','충분한 숙려시간 제공','비밀번호를 요구하지 않음'],0,'사기범은 확인할 시간을 주지 않으려 해요.'),quiz('안전한 링크 확인법은?',['공식 앱·주소를 직접 연다','문자 링크를 무조건 누른다','인증번호를 입력한다'],0,'공식 경로를 직접 이용하는 것이 안전해요.'),quiz('피해가 의심될 때 행동은?',['중단·확인·신고','숨기기','추가 송금'],0,'즉시 멈추고 믿을 수 있는 어른과 기관에 알려요.')]
   }
 ];
+
+economyReadingLessons.push(...additionalEconomyReadingLessons);
+economyReadingLessons.sort((a,b)=>a.order-b.order);
 
 export const economyReadingChapterIds = economyReadingLessons.map(lesson => lesson.id);

@@ -3,15 +3,16 @@ import {StudentHomeArtwork,StudentTransferArtwork,StudentStockArtwork,StudentFun
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { 
-    Account, Transaction, TransactionType, StockProduct, StudentStock, SavingsProduct, 
+import {
+    Account, Transaction, TransactionType, StockProduct, StudentStock, SavingsProduct,
     StudentSaving, User, Role, StockHistory, Fund, FundInvestment, FundStatus,
     Donation
 } from '../types';
-import { 
-    HomeIcon, TransferIcon, NewStockIcon, NewPiggyBankIcon, BackIcon, 
-    XIcon, CheckIcon, ErrorIcon, PlusIcon, MinusIcon, NewTaxIcon, 
-    LogoutIcon, NewFundIcon, NewspaperIcon, StudentIcon, HeartIcon 
+
+import {
+    HomeIcon, TransferIcon, NewStockIcon, NewPiggyBankIcon, BackIcon,
+    XIcon, CheckIcon, ErrorIcon, PlusIcon, MinusIcon, NewTaxIcon,
+    LogoutIcon, NewFundIcon, NewspaperIcon, StudentIcon, HeartIcon
 } from '../components/icons';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { EconomyReadingModal } from '../components/EconomyReadingModal';
@@ -21,6 +22,9 @@ import { EconomyNewsModal } from '../components/EconomyNewsModal';
 import { EconomyStoryModal } from '../components/EconomyStoryModal';
 import { FeatureGuide } from '../components/FeatureGuide';
 import { ChartModal, DonutCard, TrendChart } from '../components/VisualAnalytics';
+
+const studentIncomeTypes = new Set(['Deposit','Salary','StockSell','SavingsMaturity','FundSettle','FundPayout']);
+const isStudentIncome = (transaction: Pick<Transaction,'type'|'amount'>) => studentIncomeTypes.has(String(transaction.type)) || (String(transaction.type)==='Transfer' && Number(transaction.amount)>0);
 
 type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds';
 type LearningSection = 'news' | 'reading' | 'typing' | 'donation' | 'story';
@@ -71,8 +75,8 @@ const StudentSelectionView: React.FC<{ students: User[], onSelect: (s: User) => 
             <h2 className="text-2xl font-black text-gray-900 mb-6 px-2 tracking-tight">학생을 선택하세요</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                 {students.map(s => (
-                    <button 
-                        key={s.userId} 
+                    <button
+                        key={s.userId}
                         onClick={() => onSelect(s)}
                         className="p-4 bg-white rounded-2xl shadow-sm flex flex-col items-center justify-center aspect-square hover:shadow-xl hover:scale-105 transition-all border border-transparent hover:border-indigo-100 active:scale-95 group"
                     >
@@ -120,7 +124,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
     const assetTrend = useMemo(()=>{
         let cash=account.balance,savings=savingsValue,stocks=stockValue;
         const points=[{label:'현재',cash:Math.round(cash),savings:Math.round(savings),stocks:Math.round(stocks)}];
-        [...transactions].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).forEach(t=>{const amount=Math.abs(Number(t.amount||0)),type=String(t.type);const income=['Deposit','Salary','StockSell','SavingsMaturity','FundSettle','FundPayout'].includes(type);cash-=income?amount:-amount;if(type==='SavingsJoin')savings=Math.max(0,savings-amount);if(type==='SavingsCancel'||type==='SavingsMaturity')savings+=amount;if(type==='StockBuy')stocks=Math.max(0,stocks-amount);if(type==='StockSell')stocks+=amount;points.push({label:new Date(t.date).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}),cash:Math.round(cash),savings:Math.round(savings),stocks:Math.round(stocks)});});return points.reverse().slice(-12);
+        [...transactions].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).forEach(t=>{const amount=Math.abs(Number(t.amount||0)),type=String(t.type);const income=isStudentIncome(t);cash-=income?amount:-amount;if(type==='SavingsJoin')savings=Math.max(0,savings-amount);if(type==='SavingsCancel'||type==='SavingsMaturity')savings+=amount;if(type==='StockBuy')stocks=Math.max(0,stocks-amount);if(type==='StockSell')stocks+=amount;points.push({label:new Date(t.date).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}),cash:Math.round(cash),savings:Math.round(savings),stocks:Math.round(stocks)});});return points.reverse().slice(-12);
     },[transactions,account.balance,savingsValue,stockValue]);
 
     const sortedTransactions = useMemo(() => {
@@ -155,7 +159,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
         for (let i = 0; i < sortedTransactions.length; i++) {
             const t = sortedTransactions[i];
             result.push({ ...t, runningBalance: current });
-            const isIncome = ['Deposit', 'Salary', 'StockSell', 'SavingsMaturity', 'FundSettle'].includes(t.type);
+            const isIncome = isStudentIncome(t);
             const signedAmount = isIncome ? Math.abs(t.amount) : -Math.abs(t.amount);
             current -= signedAmount;
         }
@@ -169,8 +173,8 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
             showNotification('success', message);
             api.getMyUnpaidTaxes(currentUser.userId).then(setUnpaidTaxes);
             refreshAccount();
-        } catch(e: any) { 
-            showNotification('error', e.message); 
+        } catch(e: any) {
+            showNotification('error', e.message);
         } finally {
             setTaxToPay(null);
         }
@@ -192,8 +196,8 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span className="font-black text-red-600">{tax.amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</span>
-                                    <button 
-                                        onClick={() => setTaxToPay({ taxId: tax.taxId, amount: tax.amount, name: tax.name })} 
+                                    <button
+                                        onClick={() => setTaxToPay({ taxId: tax.taxId, amount: tax.amount, name: tax.name })}
                                         className="px-4 py-2 bg-red-600 text-white text-xs rounded-full font-bold hover:bg-red-700 active:scale-95 transition-all shadow-md shadow-red-100"
                                     >
                                         납부
@@ -219,15 +223,15 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                                     <div className="text-[11px] text-indigo-600 font-black">잔액: {t.runningBalance.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</div>
                                 </div>
                             </div>
-                            <div className={`font-black text-lg ${['Deposit', 'Salary', 'StockSell', 'SavingsMaturity', 'FundSettle'].includes(t.type) ? 'text-blue-600' : 'text-red-500'}`}>
-                                {['Deposit', 'Salary', 'StockSell', 'SavingsMaturity', 'FundSettle'].includes(t.type) ? '+' : '-'}{Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                            <div className={`font-black text-lg ${isStudentIncome(t) ? 'text-blue-600' : 'text-red-500'}`}>
+                                {isStudentIncome(t) ? '+' : '-'}{Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                             </div>
                         </div>
                     ))}
                     {transactions.length === 0 && <div className="p-12 text-center text-gray-500 font-black">활동 내역이 없습니다.</div>}
                     {transactions.length > visibleCount && (
-                        <button 
-                            onClick={() => setVisibleCount(v => v + 5)} 
+                        <button
+                            onClick={() => setVisibleCount(v => v + 5)}
                             className="w-full py-5 text-sm font-black text-indigo-600 hover:bg-indigo-50 transition-all border-t border-gray-100 active:bg-indigo-100"
                         >
                             활동 내역 더보기
@@ -243,7 +247,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                 <button data-sfx="savings-open" onClick={()=>onLearn('donation')} className="student-learning-tile"><img src="/design/student-page/donation-king.webp" alt=""/><strong>기부왕</strong><span>나눔으로 만드는<br/>따뜻한 경제 습관</span><span aria-hidden="true" className="student-tile-arrow">↗</span></button>
             </div></section></div>
 
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={!!taxToPay}
                 title="세금 납부"
                 message={`'${taxToPay?.name}' 세금 ${taxToPay?.amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${unit}을 납부하시겠습니까?`}
@@ -323,7 +327,7 @@ const TransferView: React.FC<{ currentUser: User, account: Account, refreshAccou
 
     return (
         <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 max-w-md mx-auto">
-            
+
             <div className="flex bg-gray-100 p-1.5 rounded-2xl mb-8">
                 <button onClick={() => setTargetType('mart')} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${targetType === 'mart' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-800'}`}>마트</button>
                 <button onClick={() => setTargetType('student')} className={`flex-1 py-3 rounded-xl text-sm font-black transition-all ${targetType === 'student' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-800'}`}>친구에게</button>
@@ -378,9 +382,9 @@ const TransferView: React.FC<{ currentUser: User, account: Account, refreshAccou
                 </div>
             </div>
 
-            <button 
-                onClick={safeHandleTransfer} 
-                disabled={loading || !amount || (targetType === 'student' && !recipientInfo)} 
+            <button
+                onClick={safeHandleTransfer}
+                disabled={loading || !amount || (targetType === 'student' && !recipientInfo)}
                 className="w-full mt-10 p-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none transition-all active:scale-[0.98] text-lg"
             >
                 {loading ? '보내는 중...' : '송금하기'}
@@ -390,14 +394,14 @@ const TransferView: React.FC<{ currentUser: User, account: Account, refreshAccou
 };
 
 // --- Stock Transaction Modal ---
-const StockTransactionModal: React.FC<{ 
-    mode: 'buy' | 'sell', 
-    stock: StockProduct, 
-    userId: string, 
-    ownedQuantity: number, 
-    unit: string, 
-    onClose: () => void, 
-    onComplete: (msg: string) => void 
+const StockTransactionModal: React.FC<{
+    mode: 'buy' | 'sell',
+    stock: StockProduct,
+    userId: string,
+    ownedQuantity: number,
+    unit: string,
+    onClose: () => void,
+    onComplete: (msg: string) => void
 }> = ({ mode, stock, userId, ownedQuantity, unit, onClose, onComplete }) => {
     const [quantity, setQuantity] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -407,7 +411,7 @@ const StockTransactionModal: React.FC<{
     const calcTrade = useMemo(() => {
         const vol = stock.volatility || 0.005;
         const oldP = stock.currentPrice;
-        
+
         if (mode === 'buy') {
             const newP = oldP * Math.exp(vol * quantity);
             const execP = newP; // [수정] 변동 후 가격(Slippage) 적용
@@ -417,15 +421,15 @@ const StockTransactionModal: React.FC<{
             const newP = Math.max(0.1, oldP * Math.exp(-vol * quantity));
             const execP = (oldP + newP) / 2;
             const impactPct = ((oldP - newP) / oldP) * 100;
-            
+
             let feeRate = (impactPct * 1.05) + 2.0;
             if (feeRate < 2.0) feeRate = 2.0;
             if (feeRate > 33.5) feeRate = 33.5;
-            
+
             const grossVal = execP * quantity;
             const feeAmt = grossVal * (feeRate / 100);
             const finalPayout = grossVal - feeAmt;
-            
+
             return { execPrice: execP, feeRate: parseFloat(feeRate.toFixed(1)), feeAmount: feeAmt, finalAmount: finalPayout, impact: impactPct };
         }
     }, [mode, stock, quantity]);
@@ -434,7 +438,7 @@ const StockTransactionModal: React.FC<{
         setLoading(true);
         setError(null);
         try {
-            const message = mode === 'buy' 
+            const message = mode === 'buy'
                 ? await api.buyStock(userId, stock.id, quantity)
                 : await api.sellStock(userId, stock.id, quantity);
             onComplete(message);
@@ -452,8 +456,8 @@ const StockTransactionModal: React.FC<{
                 <div className="flex-grow overflow-y-auto p-8 pt-12 flex flex-col">
                     <h3 className="text-2xl font-black mb-2 text-center text-gray-900">주식 {mode === 'buy' ? '매수' : '매도'} 확인</h3>
                     <p className="text-indigo-600 text-xs font-bold mb-8 text-center leading-tight">
-                        {mode === 'buy' 
-                            ? '* 체결 과정에서 발생하는 소수점 금액은 그대로 인출됩니다.' 
+                        {mode === 'buy'
+                            ? '* 체결 과정에서 발생하는 소수점 금액은 그대로 인출됩니다.'
                             : '* 체결 과정에서 발생하는 소수점 금액은 그대로 입금됩니다.'}
                     </p>
                     <div className="bg-gray-50 p-8 rounded-[32px] space-y-5 border border-gray-200">
@@ -501,7 +505,7 @@ const StockTransactionModal: React.FC<{
         <div className="absolute inset-0 bg-white z-[110] flex flex-col animate-fadeIn rounded-[40px]">
             <div className="flex-grow overflow-y-auto p-8 pt-16 flex flex-col items-center">
                 <h3 className="text-2xl font-black mb-8 text-center text-gray-900">{mode === 'buy' ? '얼마나 살까요?' : '얼마나 팔까요?'}</h3>
-                
+
                 {mode === 'sell' && (
                     <div className="mb-6 px-5 py-2 bg-indigo-50 text-indigo-700 rounded-full text-xs font-black">
                         보유 중인 주식: {ownedQuantity}주
@@ -510,15 +514,15 @@ const StockTransactionModal: React.FC<{
 
                 <div className="text-gray-700 font-black mb-2 uppercase tracking-widest">{stock.name}</div>
                 <div className="text-4xl font-black mb-12 text-gray-900">{stock.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</div>
-                
+
                 <div className="flex items-center gap-8 mb-12">
                     <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center hover:bg-gray-100 active:scale-[0.9] transition-all"><MinusIcon className="w-7 h-7 text-gray-600"/></button>
                     <div className="relative">
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             step="1"
-                            value={quantity} 
-                            onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} 
+                            value={quantity}
+                            onChange={e => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                             className="w-24 text-center font-black text-5xl bg-transparent outline-none border-b-4 border-indigo-100 focus:border-indigo-500 transition-colors text-gray-900"
                         />
                         <span className="absolute -right-6 bottom-2 font-black text-gray-400">주</span>
@@ -562,14 +566,14 @@ const StockTransactionModal: React.FC<{
             </div>
             <div className="p-8 bg-white border-t border-gray-100 grid grid-cols-2 gap-4">
                 <button onClick={onClose} className="py-5 bg-gray-100 font-black rounded-3xl text-gray-700 hover:bg-gray-200 transition-all">취소</button>
-                <button 
+                <button
                     onClick={() => {
                         const val = Number(quantity);
                         if (mode === 'sell' && (ownedQuantity <= 0 || val > ownedQuantity)) {
                             return;
                         }
                         setShowConfirm(true);
-                    }} 
+                    }}
                     disabled={mode === 'sell' && (ownedQuantity <= 0 || quantity > ownedQuantity)}
                     className="py-5 bg-black text-white font-black rounded-3xl hover:bg-gray-900 transition-all active:scale-[0.98] disabled:bg-gray-200 disabled:text-gray-500"
                 >
@@ -606,14 +610,14 @@ const StocksView: React.FC<{ currentUser: User, refreshAccount: () => void, show
 
     useEffect(() => {
         if (!lastTradeTime) return;
-        
+
         const COOLDOWN_MS = 10 * 60 * 1000;
-        
+
         const updateTimer = () => {
             const now = Date.now();
             const last = new Date(lastTradeTime).getTime();
             const diff = now - last;
-            
+
             if (diff < COOLDOWN_MS) {
                 setRemainingSeconds(Math.ceil((COOLDOWN_MS - diff) / 1000));
             } else {
@@ -721,7 +725,7 @@ const StocksView: React.FC<{ currentUser: User, refreshAccount: () => void, show
                             </div>
                             <button onClick={() => setSelectedStock(null)} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors"><XIcon className="w-6 h-6 text-gray-600"/></button>
                         </div>
-                        
+
                         <div className="p-6 h-48 w-full bg-gray-50">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={history}>
@@ -740,14 +744,14 @@ const StocksView: React.FC<{ currentUser: User, refreshAccount: () => void, show
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 pt-4">
-                                <button 
+                                <button
                                     onClick={() => setSelectedStock({ ...selectedStock, mode: 'buy' })}
                                     disabled={remainingSeconds > 0}
                                     className={`py-5 font-black rounded-3xl transition-all active:scale-[0.98] text-lg ${remainingSeconds > 0 ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-red-50 text-red-700 hover:bg-red-100'}`}
                                 >
                                     {remainingSeconds > 0 ? `${Math.floor(remainingSeconds / 60)}분 ${remainingSeconds % 60}초 대기` : '주식 매수 (사기)'}
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => setSelectedStock({ ...selectedStock, mode: 'sell' })}
                                     disabled={currentOwned === 0 || remainingSeconds > 0}
                                     className={`py-5 font-black rounded-3xl transition-all active:scale-[0.98] text-lg disabled:opacity-50 disabled:bg-gray-50 disabled:text-gray-500 ${remainingSeconds > 0 ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
@@ -758,7 +762,7 @@ const StocksView: React.FC<{ currentUser: User, refreshAccount: () => void, show
                         </div>
 
                         {selectedStock.mode && (
-                            <StockTransactionModal 
+                            <StockTransactionModal
                                 mode={selectedStock.mode}
                                 stock={selectedStock}
                                 userId={currentUser.userId}
@@ -781,14 +785,14 @@ const StocksView: React.FC<{ currentUser: User, refreshAccount: () => void, show
 };
 
 // --- Join Savings Modal ---
-const JoinSavingsModal: React.FC<{ 
-    product: SavingsProduct, 
-    unit: string, 
-    onClose: () => void, 
-    onJoin: (amount: number) => void 
+const JoinSavingsModal: React.FC<{
+    product: SavingsProduct,
+    unit: string,
+    onClose: () => void,
+    onJoin: (amount: number) => void
 }> = ({ product, unit, onClose, onJoin }) => {
     const [amount, setAmount] = useState('');
-    
+
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn" onClick={onClose}>
             <div className="bg-white rounded-[40px] p-8 md:p-10 w-full max-w-sm text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
@@ -797,13 +801,13 @@ const JoinSavingsModal: React.FC<{
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-2">{product.name} 가입</h3>
                 <p className="text-gray-700 text-sm font-bold mb-8">얼마를 가입할까요? (최대 {product.maxAmount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit})</p>
-                
+
                 <div className="relative mb-8">
-                    <input 
-                        type="number" 
+                    <input
+                        type="number"
                         step="1"
-                        value={amount} 
-                        onChange={e => setAmount(e.target.value)} 
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
                         placeholder="금액 입력"
                         className="w-full p-5 border border-gray-200 rounded-3xl outline-none focus:ring-4 focus:ring-green-50 focus:border-green-500 font-black text-2xl text-center text-gray-900"
                     />
@@ -818,7 +822,7 @@ const JoinSavingsModal: React.FC<{
 
                 <div className="grid grid-cols-2 gap-3">
                     <button onClick={onClose} className="py-4 bg-gray-100 text-gray-700 font-black rounded-2xl hover:bg-gray-200 transition-all">취소</button>
-                    <button 
+                    <button
                         onClick={() => {
                             const val = Number(amount);
                             if (val > 0 && val <= product.maxAmount) {
@@ -826,7 +830,7 @@ const JoinSavingsModal: React.FC<{
                             } else {
                                 alert(`최대 ${product.maxAmount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${unit}까지 가능합니다.`);
                             }
-                        }} 
+                        }}
                         className="py-4 bg-green-600 text-white font-black rounded-2xl shadow-xl shadow-green-100 hover:bg-green-700 transition-all active:scale-[0.98]"
                     >
                         가입 완료
@@ -838,15 +842,15 @@ const JoinSavingsModal: React.FC<{
 };
 
 // --- Join Fund Modal (구좌 수 입력 추가) ---
-const JoinFundModal: React.FC<{ 
-    fund: Fund, 
-    unit: string, 
-    onClose: () => void, 
-    onJoin: (units: number) => void 
+const JoinFundModal: React.FC<{
+    fund: Fund,
+    unit: string,
+    onClose: () => void,
+    onJoin: (units: number) => void
 }> = ({ fund, unit, onClose, onJoin }) => {
     const [units, setUnits] = useState(1);
     const totalCost = units * fund.unitPrice;
-    
+
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[150] p-4 animate-fadeIn" onClick={onClose}>
             <div className="bg-white rounded-[40px] p-8 md:p-10 w-full max-w-sm text-center shadow-2xl border border-white" onClick={e => e.stopPropagation()}>
@@ -855,15 +859,15 @@ const JoinFundModal: React.FC<{
                 </div>
                 <h3 className="text-2xl font-black text-gray-900 mb-2">{fund.name} 투자</h3>
                 <p className="text-gray-700 text-sm font-bold mb-6">투자할 구좌 수를 선택하세요.<br/>(1구좌당 {fund.unitPrice.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit})</p>
-                
+
                 <div className="flex items-center justify-center gap-6 mb-8">
                     <button onClick={() => setUnits(Math.max(1, units - 1))} className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center hover:bg-gray-100 active:scale-[0.9] transition-all"><MinusIcon className="w-6 h-6 text-gray-700"/></button>
                     <div className="relative">
-                        <input 
-                            type="number" 
+                        <input
+                            type="number"
                             step="1"
-                            value={units} 
-                            onChange={e => setUnits(Math.max(1, parseInt(e.target.value) || 1))} 
+                            value={units}
+                            onChange={e => setUnits(Math.max(1, parseInt(e.target.value) || 1))}
                             className="w-20 text-center font-black text-4xl bg-transparent outline-none border-b-2 border-indigo-100 focus:border-indigo-500 transition-colors text-gray-900"
                         />
                         <span className="absolute -right-6 bottom-1 font-black text-gray-500">좌</span>
@@ -878,8 +882,8 @@ const JoinFundModal: React.FC<{
 
                 <div className="grid grid-cols-2 gap-3">
                     <button onClick={onClose} className="py-4 bg-gray-100 text-gray-700 font-black rounded-2xl hover:bg-gray-200 transition-all">취소</button>
-                    <button 
-                        onClick={() => onJoin(units)} 
+                    <button
+                        onClick={() => onJoin(units)}
                         className="py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-[0.98]"
                     >
                         투자 완료
@@ -914,12 +918,12 @@ const SavingsView: React.FC<{ currentUser: User, refreshAccount: () => void, sho
             const joinAmount = Math.floor(Number(amount));
             const productIdStr = String(selectedProduct.id);
             const userIdStr = String(currentUser.userId);
-            
+
             const msg = await api.joinSavings(userIdStr, productIdStr, joinAmount);
             showNotification('success', msg || '예금에 가입되었습니다!');
             setSelectedProduct(null); fetchData(); refreshAccount();
-        } catch(e: any) { 
-            showNotification('error', e.message); 
+        } catch(e: any) {
+            showNotification('error', e.message);
         }
     };
 
@@ -946,11 +950,11 @@ const SavingsView: React.FC<{ currentUser: User, refreshAccount: () => void, sho
                             const maturityInterest = s.amount * rate;
                             // [수정] 중도 해지 환급액 표시 로직을 '원금 + 이자'로 수정
                             const cancelRefund = s.amount + (s.amount * cancelRate);
-                            
+
                             const joinTime = new Date(s.joinDate).getTime();
                             const maturityTime = new Date(s.maturityDate).getTime();
                             const duration = maturityTime - joinTime;
-                            
+
                             // 2/3 경과 시 해지 가능 로직
                             const possibleTime = joinTime + (duration * 2 / 3);
                             const canCancel = Date.now() >= possibleTime;
@@ -975,8 +979,8 @@ const SavingsView: React.FC<{ currentUser: User, refreshAccount: () => void, sho
                                         </div>
                                         <div className="flex gap-2">
                                             {!isMatured && (
-                                                <button 
-                                                    onClick={() => canCancel && setCancelTargetId(s.savingId)} 
+                                                <button
+                                                    onClick={() => canCancel && setCancelTargetId(s.savingId)}
                                                     className={`px-4 py-2 text-[10px] font-black rounded-full transition-all ${canCancel ? 'bg-red-50 text-red-700 hover:bg-red-100' : 'bg-gray-100 text-gray-500 cursor-not-allowed'}`}
                                                     title={!canCancel ? `${possibleDateStr}부터 해지 가능합니다.` : ""}
                                                 >
@@ -984,8 +988,8 @@ const SavingsView: React.FC<{ currentUser: User, refreshAccount: () => void, sho
                                                 </button>
                                             )}
                                             {isMatured && (
-                                                <button 
-                                                    onClick={() => setMaturityTargetId(s.savingId)} 
+                                                <button
+                                                    onClick={() => setMaturityTargetId(s.savingId)}
                                                     className="px-6 py-2 bg-indigo-600 text-white text-xs font-black rounded-full hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-100"
                                                 >
                                                     만기금 수령하기
@@ -1032,9 +1036,9 @@ const SavingsView: React.FC<{ currentUser: User, refreshAccount: () => void, sho
                     {products.map(p => {
                         const isJoined = mySavings.some(ms => ms.productId === p.id);
                         return (
-                            <button 
-                                key={p.id} 
-                                onClick={() => !isJoined && setSelectedProduct(p)} 
+                            <button
+                                key={p.id}
+                                onClick={() => !isJoined && setSelectedProduct(p)}
                                 disabled={isJoined}
                                 className={`bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 text-left transition-all group ${isJoined ? 'opacity-60 grayscale-[0.5] cursor-not-allowed' : 'hover:scale-[1.02]'}`}
                             >
@@ -1059,15 +1063,15 @@ const SavingsView: React.FC<{ currentUser: User, refreshAccount: () => void, sho
             </div>
 
             {selectedProduct && (
-                <JoinSavingsModal 
-                    product={selectedProduct} 
-                    unit={unit} 
-                    onClose={() => setSelectedProduct(null)} 
-                    onJoin={handleJoin} 
+                <JoinSavingsModal
+                    product={selectedProduct}
+                    unit={unit}
+                    onClose={() => setSelectedProduct(null)}
+                    onJoin={handleJoin}
                 />
             )}
 
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={!!cancelTargetId}
                 title="예금 해지"
                 message="정말로 예금을 해지하시겠습니까? 중도 해지 시 약정 이자를 받을 수 없으나 가입하셨던 원금은 안전하게 입금됩니다."
@@ -1083,7 +1087,7 @@ const SavingsView: React.FC<{ currentUser: User, refreshAccount: () => void, sho
                 isDangerous
             />
 
-            <ConfirmModal 
+            <ConfirmModal
                 isOpen={!!maturityTargetId}
                 title="만기 정산 수령"
                 message="축하합니다! 예금 만기일이 되었습니다. 지금 원금과 이자를 수령하시겠습니까?"
@@ -1119,8 +1123,8 @@ const FundView: React.FC<{ currentUser: User, students?: User[], refreshAccount:
             const msg = await api.joinFund(userIdStr, fundIdStr, units);
             showNotification('success', msg);
             setSelectedFund(null); fetchData(); refreshAccount();
-        } catch(e: any) { 
-            showNotification('error', e.message); 
+        } catch(e: any) {
+            showNotification('error', e.message);
         }
     };
 
@@ -1239,7 +1243,7 @@ const FundView: React.FC<{ currentUser: User, students?: User[], refreshAccount:
                                             <div className="text-2xl font-black">{incentiveReward.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</div>
                                         </div>
                                     </div>
-                                    
+
                                     <p className="text-[11px] font-bold leading-relaxed bg-black/20 p-3 rounded-xl border border-white/20">
                                         💡 펀드 정산 시, 성공 또는 인센티브 달성 시 위 보상금이 국고에서 지급됩니다. 실패 시 보상금은 지급되지 않습니다.
                                     </p>
@@ -1279,8 +1283,8 @@ const FundView: React.FC<{ currentUser: User, students?: User[], refreshAccount:
                                             <span>목표 금액: {(f.targetAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</span>
                                         </div>
                                         <div className="w-full bg-indigo-200 h-2 rounded-full overflow-hidden my-1">
-                                            <div 
-                                                className="bg-indigo-600 h-full rounded-full transition-all" 
+                                            <div
+                                                className="bg-indigo-600 h-full rounded-full transition-all"
                                                 style={{ width: `${Math.min(100, ((f.totalInvestedAmount || 0) / (f.targetAmount || 1)) * 100)}%` }}
                                             ></div>
                                         </div>
@@ -1304,7 +1308,7 @@ const FundView: React.FC<{ currentUser: User, students?: User[], refreshAccount:
                                             <div className="font-black text-base text-indigo-700">+{(f.incentiveReward || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</div>
                                         </div>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setSelectedFund(f)}
                                         disabled={f.status !== FundStatus.RECRUITING}
                                         className={`w-full py-5 rounded-[24px] font-black text-lg transition-all active:scale-[0.98] ${f.status === FundStatus.RECRUITING ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100' : 'bg-gray-100 text-gray-500'}`}
@@ -1323,11 +1327,11 @@ const FundView: React.FC<{ currentUser: User, students?: User[], refreshAccount:
             </div>
 
             {selectedFund && (
-                <JoinFundModal 
-                    fund={selectedFund} 
-                    unit={unit} 
-                    onClose={() => setSelectedFund(null)} 
-                    onJoin={handleJoin} 
+                <JoinFundModal
+                    fund={selectedFund}
+                    unit={unit}
+                    onClose={() => setSelectedFund(null)}
+                    onJoin={handleJoin}
                 />
             )}
         </div>
@@ -1336,13 +1340,13 @@ const FundView: React.FC<{ currentUser: User, students?: User[], refreshAccount:
 
 // --- Main StudentPage Component ---
 
-const DonationModal: React.FC<{ 
-    isOpen: boolean, 
+const DonationModal: React.FC<{
+    isOpen: boolean,
     onClose: () => void,
-    currentUser: User, 
-    account: Account, 
-    refreshAccount: () => void, 
-    showNotification: (type: 'success' | 'error', text: string) => void 
+    currentUser: User,
+    account: Account,
+    refreshAccount: () => void,
+    showNotification: (type: 'success' | 'error', text: string) => void
 }> = ({ isOpen, onClose, currentUser, account, refreshAccount, showNotification }) => {
     const unit = currentUser?.currencyUnit || '권';
     const [donations, setDonations] = useState<Donation[]>([]);
@@ -1364,9 +1368,9 @@ const DonationModal: React.FC<{
         }
     }, [currentUser.teacher_id]);
 
-    useEffect(() => { 
+    useEffect(() => {
         if (isOpen) {
-            fetchDonations(); 
+            fetchDonations();
         }
     }, [isOpen, fetchDonations]);
 
@@ -1432,12 +1436,12 @@ const DonationModal: React.FC<{
                                     <div className="p-6 flex flex-col flex-grow">
                                         <h3 className="font-black text-xl text-gray-900 mb-2">{d.title}</h3>
                                         <p className="text-sm text-gray-600 mb-6 leading-relaxed whitespace-pre-wrap">{d.content}</p>
-                                        
+
                                         {d.url && (
-                                            <a 
-                                                href={d.url} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer" 
+                                            <a
+                                                href={d.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
                                                 className="text-xs text-indigo-600 font-bold hover:underline mb-4 block"
                                             >
                                                 본문 확인 →
@@ -1454,8 +1458,8 @@ const DonationModal: React.FC<{
                                                     <div className="bg-pink-500 h-2 rounded-full w-full"></div>
                                                 </div>
                                             </div>
-                                            
-                                            <button 
+
+                                            <button
                                                 onClick={() => setSelectedDonation(d)}
                                                 className="w-full py-4 bg-pink-600 text-white rounded-2xl text-sm font-black hover:bg-pink-700 transition-all active:scale-[0.98] shadow-lg shadow-pink-100"
                                             >
@@ -1484,7 +1488,7 @@ const DonationModal: React.FC<{
                                     <XIcon className="w-6 h-6 text-gray-400" />
                                 </button>
                             </div>
-                            
+
                             <div className="mb-8">
                                 <p className="text-xs text-gray-500 font-bold mb-1 uppercase">캠페인</p>
                                 <p className="font-black text-gray-900 text-lg">{selectedDonation.title}</p>
@@ -1494,19 +1498,19 @@ const DonationModal: React.FC<{
                                 <div>
                                     <label className="block text-xs font-black text-gray-800 mb-2 ml-1 uppercase">기부할 금액</label>
                                     <div className="relative">
-                                        <input 
-                                            type="number" 
-                                            value={donateAmount} 
-                                            onChange={e => setDonateAmount(e.target.value)} 
-                                            className="w-full p-5 pr-12 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-50/50 outline-none font-black text-2xl tracking-tight text-gray-900" 
-                                            placeholder="0" 
+                                        <input
+                                            type="number"
+                                            value={donateAmount}
+                                            onChange={e => setDonateAmount(e.target.value)}
+                                            className="w-full p-5 pr-12 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-50/50 outline-none font-black text-2xl tracking-tight text-gray-900"
+                                            placeholder="0"
                                         />
                                         <span className="absolute right-5 top-5 text-gray-800 font-black text-lg">{unit}</span>
                                     </div>
                                     <div className="mt-2 text-[11px] text-gray-800 font-black text-right">내 잔액: {account?.balance?.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || 0}{unit}</div>
                                 </div>
 
-                                <button 
+                                <button
                                     onClick={handleDonate}
                                     disabled={isDonating || !donateAmount || parseFloat(donateAmount) <= 0}
                                     className="w-full p-5 bg-pink-600 text-white font-black rounded-2xl shadow-xl shadow-pink-100 hover:bg-pink-700 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none transition-all active:scale-[0.98] text-lg"
@@ -1536,7 +1540,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     const [notification, setNotification] = useState<NotificationType | null>(null);
     useEffect(()=>{if(notification?.type==='error')playSound('error-soft');},[notification]);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     const [activeStudent, setActiveStudent] = useState<User | null>(null);
     const [students, setStudents] = useState<User[]>([]);
 
@@ -1557,7 +1561,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     const refreshAccount = useCallback(async () => {
         const targetUser = (currentUser?.role === Role.TEACHER) ? activeStudent : currentUser;
         if (!targetUser) return;
-        
+
         setIsLoading(true);
         try {
             const acc = await api.getStudentAccountByUserId(targetUser.userId);
@@ -1680,7 +1684,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
             </div>
 
             </div>
-            <DonationModal 
+            <DonationModal
                 isOpen={showDonationModal}
                 onClose={() => setShowDonationModal(false)}
                 currentUser={{...effectiveUser, currencyUnit: currentUnit}}
@@ -1689,7 +1693,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 showNotification={(type, text) => setNotification({type, text})}
             />
 
-            <EconomyReadingModal 
+            <EconomyReadingModal
                 isOpen={showReadingModal}
                 onClose={() => setShowReadingModal(false)}
                 user={{...effectiveUser, currencyUnit: currentUnit}}

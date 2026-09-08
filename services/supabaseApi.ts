@@ -8,7 +8,7 @@ import { Role, User, Account, StockProduct, StockProductWithDetails, StudentStoc
 const handleSupabaseError = (error: any, context: string) => {
     if (error) {
         console.error(`Error in ${context}:`, error);
-        
+
         // 함수 모호성 에러 (PGRST203) 처리
         if (error.code === 'PGRST203' || (error.message && error.message.includes('best candidate function'))) {
              throw new Error(`테스트 DB 함수의 호출 형식이 중복됩니다. 오류 내용을 전달해 주세요. 함수를 삭제하지 마세요.`);
@@ -17,7 +17,7 @@ const handleSupabaseError = (error: any, context: string) => {
         if (error.code === 'PGRST202' || (error.message && error.message.includes('Could not find the function'))) {
              throw new Error(`Supabase에 해당 함수가 없습니다. (${context})\nSQL Editor에서 함수를 업데이트해주세요.`);
         }
-        
+
         if (error.code === '42501' || (error.message && (error.message.includes('permission denied') || error.message.includes('violates row-level security policy')))) {
              throw new Error('접근 권한을 확인할 수 없습니다. 테스트 관리자 로그인과 03번 SQL 적용 상태를 확인해 주세요. RLS는 해제하지 마세요.');
         }
@@ -52,7 +52,7 @@ const handleSupabaseError = (error: any, context: string) => {
                 throw new Error(match[1]);
             }
         }
-        
+
         throw new Error(error.message || `An error occurred during ${context}.`);
     }
 };
@@ -72,10 +72,10 @@ const uuidv4 = () => {
 // 공통 화폐 단위 및 교사 별칭 주입 헬퍼
 const injectCurrencyUnit = async (user: User | null): Promise<User | null> => {
     if (!user) return null;
-    
+
     // 학생의 경우 teacher_id를, 선생님의 경우 자신의 userId를 기준으로 선생님 정보를 가져옴
     let teacherId = user.role === Role.TEACHER ? user.userId : user.teacher_id;
-    
+
     // 만약 학생인데 teacher_id가 없다면, DB에서 다시 한 번 조회를 시도함 (데이터 무결성 보완)
     if (!teacherId && user.role === Role.STUDENT) {
         try {
@@ -84,7 +84,7 @@ const injectCurrencyUnit = async (user: User | null): Promise<User | null> => {
                 .select('teacher_id')
                 .eq('userId', user.userId)
                 .maybeSingle();
-            
+
             if (userData?.teacher_id) {
                 teacherId = userData.teacher_id;
                 user.teacher_id = userData.teacher_id;
@@ -99,11 +99,11 @@ const injectCurrencyUnit = async (user: User | null): Promise<User | null> => {
             // [수정] 보안 강화를 위해 직접 테이블 조회 대신 RPC 보안 함수 사용
             // teacherId를 명시적으로 string으로 변환하여 p_teacher_id 인자로 전달
             const { data, error } = await supabase.rpc('get_teacher_public_info', { p_teacher_id: teacherId.toString() });
-            
+
             if (error) {
                 console.error("Teacher info lookup error (via RPC):", error);
             }
-            
+
             if (data && data.length > 0) {
                 const info = data[0];
                 // 성공적으로 가져온 경우 주입 (RPC 반환 컬럼명: currency_unit, teacher_alias, class_code)
@@ -201,10 +201,10 @@ const getUsersByRole = async (role: Role, teacherId: string): Promise<User[]> =>
     if (role === Role.STUDENT) {
         try {
             if (teacherId) {
-                const { data, error } = await supabase.rpc('get_students_by_teacher', { 
-                    p_teacher_id: teacherId.toString() 
+                const { data, error } = await supabase.rpc('get_students_by_teacher', {
+                    p_teacher_id: teacherId.toString()
                 });
-                
+
                 if (error) {
                     console.error("RPC Error in get_students_by_teacher:", error.message);
                 } else if (data) {
@@ -223,7 +223,7 @@ const getUsersByRole = async (role: Role, teacherId: string): Promise<User[]> =>
             .eq('role', role)
             .or(`teacher_id.eq.${teacherId},teacher_id.is.null`)
             .order('number', { ascending: true });
-            
+
         handleSupabaseError(error, `getUsersByRole (${role})`);
         users = data || [];
     }
@@ -235,11 +235,11 @@ const getUsersByRole = async (role: Role, teacherId: string): Promise<User[]> =>
             try {
                 // [수정] 보안 강화를 위해 직접 테이블 조회 대신 RPC 보안 함수 사용
                 const { data: rpcData } = await supabase.rpc('get_teacher_public_info', { p_teacher_id: tid.toString() });
-                
+
                 if (rpcData && rpcData.length > 0) {
                     const tData = rpcData[0];
-                    users = users.map(u => ({ 
-                        ...u, 
+                    users = users.map(u => ({
+                        ...u,
                         currencyUnit: tData.currency_unit || u.currencyUnit || '권',
                         teacherAlias: tData.teacher_alias || u.teacherAlias, // 별칭 주입
                         classCode: tData.class_code || u.classCode
@@ -262,10 +262,10 @@ const loginWithPassword = async (classCode: string, grade: number, classNum: num
         p_number: number,
         p_password: password
     });
-    
+
     if (error) throw new Error(error.message);
     if (!data.success) throw new Error(data.message);
-    
+
     // 주입된 사용자 객체에 화폐 단위 강제 확인 및 주입
     const user = data.user as User;
     return injectCurrencyUnit(user);
@@ -358,26 +358,26 @@ const deleteStudents = async (userIds: string[]): Promise<string> => {
 
 const getStudentAccountByUserId = async (userId: string): Promise<Account | null> => {
     if (!userId) return null;
-    
+
     const { data, error } = await supabase
         .from('accounts')
         .select('*')
         .eq('userId', userId);
-    
+
     if (error) {
         handleSupabaseError(error, 'getStudentAccountByUserId');
     }
-    
+
     if (!data || data.length === 0) return null;
 
-    let accountData = data.find(acc => acc.account_type === 'mart');
+    let accountData = data.find(acc => acc.account_type === 'personal' || acc.account_type === 'student');
     if (!accountData) {
-        accountData = data.find(acc => acc.account_type === 'personal');
+        accountData = data.find(acc => !['mart', 'treasury'].includes(acc.account_type || ''));
     }
     if (!accountData) {
         accountData = data[0];
     }
-    
+
     return {
         ...accountData,
         accountId: accountData.accountId || accountData.accountid || accountData.id
@@ -385,8 +385,8 @@ const getStudentAccountByUserId = async (userId: string): Promise<Account | null
 };
 
 const getTeacherAccount = async (teacherIdParam?: string): Promise<Account | null> => {
-    const storedUserId = teacherIdParam 
-        || sessionStorage.getItem('class_bank_user_id') 
+    const storedUserId = teacherIdParam
+        || sessionStorage.getItem('class_bank_user_id')
         || localStorage.getItem('class_bank_user_id');
 
     let currentUserId = storedUserId;
@@ -421,9 +421,9 @@ const getTeacherAccount = async (teacherIdParam?: string): Promise<Account | nul
 
     if (!error && treasuryAccounts && treasuryAccounts.length > 0) {
         if (ids.length > 0) {
-            const matched = treasuryAccounts.find(acc => 
-                ids.includes(acc.userId) || 
-                ids.includes(acc.teacher_id) || 
+            const matched = treasuryAccounts.find(acc =>
+                ids.includes(acc.userId) ||
+                ids.includes(acc.teacher_id) ||
                 ids.includes(acc.accountId)
             );
             if (matched) {
@@ -466,7 +466,7 @@ const getMartAccountByTeacherId = async (teacherId: string): Promise<Account | n
         .eq('teacher_id', teacherId)
         .eq('account_type', 'mart')
         .single();
-    
+
     if (error && error.code !== 'PGRST116') handleSupabaseError(error, 'getMartAccountByTeacherId');
     if (!data) return null;
 
@@ -492,7 +492,7 @@ const getRecipientDetailsByAccountId = async (accountId: string): Promise<{ user
         .select('*')
         .eq('accountId', accountId)
         .single();
-    
+
     if (accountError && accountError.code !== 'PGRST116') {
         handleSupabaseError(accountError, 'getRecipientDetailsByAccountId (account)');
     }
@@ -503,7 +503,7 @@ const getRecipientDetailsByAccountId = async (accountId: string): Promise<{ user
         .select('*')
         .eq('userId', accountData.userId)
         .single();
-    
+
     handleSupabaseError(userError, 'getRecipientDetailsByAccountId (user)');
     if (!userData) return null;
 
@@ -569,7 +569,7 @@ const martTransfer = async (studentAccountId: string, amount: number, direction:
 const getStockProducts = async (teacherId: string): Promise<StockProductWithDetails[]> => {
     const { data, error } = await supabase.rpc('get_stock_products_with_details', { p_teacher_id: teacherId.toString() });
     if (error) handleSupabaseError(error, 'getStockProducts (RPC)');
-    
+
     return (data || []).map((item: any) => ({
         id: item.id.toString(),
         name: item.name,
@@ -606,9 +606,9 @@ const getStockHistory = async (stockId: string): Promise<StockHistory[]> => {
     if (!error) {
         history = (data || []).map((item: any) => ({
             id: item.id.toString(),
-            stockId: (item.stockId || item.stockid).toString(), 
+            stockId: (item.stockId || item.stockid).toString(),
             price: item.price,
-            createdAt: item.createdAt || item.createdat 
+            createdAt: item.createdAt || item.createdat
         })).reverse();
     }
     if (history.length === 0) {
@@ -625,28 +625,28 @@ const getStockHistory = async (stockId: string): Promise<StockHistory[]> => {
 };
 
 const buyStock = async (userId: string, stockId: string, quantity: number): Promise<string> => {
-    const { data, error } = await supabase.rpc('buy_stock', { 
-        p_user_id: userId.toString(), 
-        p_stock_id: stockId.toString(), 
-        p_quantity: quantity 
+    const { data, error } = await supabase.rpc('buy_stock', {
+        p_user_id: userId.toString(),
+        p_stock_id: stockId.toString(),
+        p_quantity: quantity
     });
     handleSupabaseError(error, 'buyStock');
     return typeof data === 'string' ? data : '주식을 성공적으로 구매했습니다.';
 };
 
 const sellStock = async (userId: string, stockId: string, quantity: number): Promise<string> => {
-    const { data, error } = await supabase.rpc('sell_stock', { 
-        p_user_id: userId.toString(), 
-        p_stock_id: stockId.toString(), 
-        p_quantity: quantity 
+    const { data, error } = await supabase.rpc('sell_stock', {
+        p_user_id: userId.toString(),
+        p_stock_id: stockId.toString(),
+        p_quantity: quantity
     });
     handleSupabaseError(error, 'sellStock');
     return typeof data === 'string' ? data : '주식을 성공적으로 판매했습니다.';
 };
 
 const addStockProduct = async (name: string, price: number, teacherId: string): Promise<string> => {
-    const { data, error } = await supabase.rpc('add_stock_product', { 
-        p_name: name, 
+    const { data, error } = await supabase.rpc('add_stock_product', {
+        p_name: name,
         p_initial_price: price,
         p_teacher_id: teacherId.toString()
     });
@@ -702,7 +702,7 @@ const getLastStockTradeTime = async (userId: string): Promise<string | null> => 
         .order('date', { ascending: false })
         .limit(1)
         .maybeSingle();
-    
+
     if (error) {
         console.error("Error fetching last stock trade time:", error);
         return null;
@@ -741,7 +741,7 @@ const joinSavings = async (userId: string, productId: string, amount: number): P
         .eq('userId', userId)
         .eq('productId', productId)
         .maybeSingle();
-    
+
     if (checkError) handleSupabaseError(checkError, 'joinSavings (subscription check)');
     if (existing) throw new Error('이미 가입된 예금 상품입니다. 동일한 예금은 하나만 가입할 수 있습니다.');
 
@@ -758,9 +758,9 @@ const cancelSavings = async (userId: string, savingId: string): Promise<string> 
 
 // [추가] 예금 만기 정산 API
 const processSavingsMaturity = async (userId: string, savingId: string): Promise<string> => {
-    const { data, error } = await supabase.rpc('process_savings_maturity', { 
-        p_user_id: userId.toString(), 
-        p_saving_id: savingId.toString() 
+    const { data, error } = await supabase.rpc('process_savings_maturity', {
+        p_user_id: userId.toString(),
+        p_saving_id: savingId.toString()
     });
     handleSupabaseError(error, 'processSavingsMaturity');
     return typeof data === 'string' ? data : '만기 정산이 완료되었습니다.';
@@ -776,11 +776,11 @@ const addSavingsProduct = async (product: Omit<SavingsProduct, 'id'>): Promise<s
         p_teacher_id: (product as any).teacher_id.toString()
     });
     handleSupabaseError(error, 'addSavingsProduct');
-    
+
     if (data && data.success === false) {
         throw new Error(data.message || '예금 상품 추가에 실패했습니다.');
     }
-    
+
     return (data && data.message) ? data.message : '예금 상품이 성공적으로 추가되었습니다.';
 };
 
@@ -803,11 +803,11 @@ const getJobs = async (teacherId: string): Promise<Job[]> => {
 };
 
 const addJob = async (name: string, description: string, salary: number, teacherId: string): Promise<string> => {
-    const { error } = await supabase.rpc('add_job', { 
-        p_job_name: name, 
-        p_description: description, 
+    const { error } = await supabase.rpc('add_job', {
+        p_job_name: name,
+        p_description: description,
         p_salary: salary,
-        p_teacher_id: teacherId.toString() 
+        p_teacher_id: teacherId.toString()
     });
     handleSupabaseError(error, 'addJob');
     return '새로운 직업이 추가되었습니다.';
@@ -876,10 +876,10 @@ const getTaxes = async (teacherId: string): Promise<TaxItemWithRecipients[]> => 
 };
 
 const createTax = async (name: string, amount: number, dueDate: string, studentIds: string[], teacherId: string): Promise<string> => {
-    const { data, error } = await supabase.rpc('create_tax', { 
-        p_name: name, 
-        p_amount: amount, 
-        p_due_date: dueDate, 
+    const { data, error } = await supabase.rpc('create_tax', {
+        p_name: name,
+        p_amount: amount,
+        p_due_date: dueDate,
         p_student_ids: studentIds,
         p_teacher_id: teacherId.toString()
     });
@@ -966,10 +966,10 @@ const deleteFund = async (fundId: string): Promise<string> => {
 };
 
 const joinFund = async (userId: string, fundId: string, units: number): Promise<string> => {
-    const { data, error } = await supabase.rpc('join_fund', { 
-        p_user_id: userId.toString(), 
-        p_fund_id: fundId.toString(), 
-        p_units: units 
+    const { data, error } = await supabase.rpc('join_fund', {
+        p_user_id: userId.toString(),
+        p_fund_id: fundId.toString(),
+        p_units: units
     });
     handleSupabaseError(error, 'joinFund');
     // SQL에서 json_build_object로 성공 여부를 반환하는 경우 처리
@@ -980,8 +980,8 @@ const joinFund = async (userId: string, fundId: string, units: number): Promise<
 };
 
 const settleFund = async (fundId: string, resultStatus: FundStatus, executionRate?: number): Promise<string> => {
-    const { data, error = null } = await supabase.rpc('settle_fund', { 
-        p_fund_id: fundId.toString(), 
+    const { data, error = null } = await supabase.rpc('settle_fund', {
+        p_fund_id: fundId.toString(),
         p_status: resultStatus,
         p_execution_rate: executionRate
     });
@@ -994,7 +994,7 @@ const getMyFundInvestments = async (userId: string): Promise<FundInvestment[]> =
     handleSupabaseError(error, 'getMyFundInvestments');
     return (data || []).map((inv: any) => ({
         id: inv.id.toString(), fundId: inv.fund_id.toString(), studentUserId: inv.student_user_id.toString(), units: inv.units, investedAt: inv.invested_at,
-        fund: inv.funds ? { 
+        fund: inv.funds ? {
             ...inv.funds,
             id: inv.funds.id.toString(),
             unitPrice: inv.funds.unit_price // unit_price를 unitPrice로 매핑 (필수)
@@ -1034,16 +1034,16 @@ const getDailyTreasuryTotals = async (teacherId: string): Promise<{ deposits: nu
         .eq('userId', teacherId)
         .eq('account_type', 'treasury')
         .single();
-    
+
     if (accError || !accounts) return { deposits: 0, withdrawals: 0 };
-    
+
     const treasuryId = accounts.accountId;
-    
+
     // 2. Get today's date range (local time start of day to end of day)
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
-    
+
     // 3. Query transactions
     const { data: txns, error: txnError } = await supabase
         .from('transactions')
@@ -1051,17 +1051,17 @@ const getDailyTreasuryTotals = async (teacherId: string): Promise<{ deposits: nu
         .eq('accountId', treasuryId)
         .gte('date', startOfDay)
         .lte('date', endOfDay);
-    
+
     if (txnError || !txns) return { deposits: 0, withdrawals: 0 };
-    
+
     let deposits = 0;
     let withdrawals = 0;
-    
+
     txns.forEach(t => {
         if (t.type === 'Deposit') deposits += t.amount;
         else if (t.type === 'Withdrawal') withdrawals += t.amount;
     });
-    
+
     return { deposits, withdrawals };
 };
 
@@ -1122,7 +1122,7 @@ async function updateDonation(donationId: string, title: string, url: string, co
 async function getDonationLogs(donationId: string): Promise<any[]> {
     const { data, error } = await supabase
         .rpc('get_donation_participants', { arg_donation_id: donationId });
-    
+
     if (error) {
         console.error('RPC Error fetching donation logs:', error);
         handleSupabaseError(error, 'getDonationLogs');

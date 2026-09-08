@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Role, User } from '../types';
 import { XIcon } from './icons';
+import { playSound } from '../services/sounds';
 
 type Topic = { id: string; title: string; prompt: string; isOpen: boolean; createdAt: string; commentCount: number };
 type Comment = { id: string; content: string; createdAt: string; userId: string; userName: string; userNumber?: number; rewardedAt?: string | null; rewardAmount?: number };
@@ -65,6 +66,7 @@ export const EconomyStoryModal: React.FC<{ isOpen: boolean; onClose: () => void;
       const response = await api.rewardEconomyStoryComments(teacherId, checked, amount);
       setRewardOpen(false); setRewardValue(''); setChecked([]);
       if (selected) await loadComments(selected);
+      playSound('success-coin');
       setFeedback(`${response.rewarded}개의 좋은 의견에 총 ${response.total.toLocaleString()}${user.currencyUnit || '톨'}을 지급했습니다.`);
     } catch (e: any) { setError(e.message || '보상을 지급하지 못했습니다.'); }
     finally { setBusy(false); }
