@@ -59,7 +59,7 @@ export const EconomyNewsModal: React.FC<EconomyNewsModalProps> = ({ isOpen, onCl
           </div>
         </div>
 
-        <div className="flex-1 w-full h-full bg-white relative">
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden bg-white">
           {isDemo ? <div className="mx-auto max-w-lg p-8 text-center"><img src="/design/empty-news.png" alt="" className="mx-auto h-36 object-contain"/><h4 className="mt-4 text-xl font-bold text-slate-800">경제뉴스를 함께 읽어요</h4><p className="mt-3 leading-relaxed text-slate-600">가상 학급에서는 실제 뉴스를 불러오지 않습니다. Supabase에 연결된 테스트 서비스에서 기사와 학습 기능을 이용할 수 있습니다.</p><button onClick={onClose} className="mt-6 rounded-xl bg-blue-600 px-6 py-3 font-bold text-white">홈으로 돌아가기</button></div> : (user || currentUser) ? <EconomyNewsPanel user={(user || currentUser)!} onBalanceChanged={onBalanceChanged} /> : <div className="p-8 text-gray-700">로그인 정보를 확인할 수 없습니다.</div>}
         </div>
       </div>
