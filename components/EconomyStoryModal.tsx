@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Role, User } from '../types';
 import { XIcon } from './icons';
-import { playButtonSound, playSound } from '../services/sounds';
+import { playSound } from '../services/sounds';
 
 type Topic = { id: string; title: string; prompt: string; isOpen: boolean; createdAt: string; commentCount: number };
-type Comment = { id: string; content: string; createdAt: string; userId: string; userName: string; userNumber?: number; rewardedAt?: string | null; rewardAmount?: number; reactionCount: number; reactedByMe: boolean };
+type Comment = { id: string; content: string; createdAt: string; userId: string; userName: string; userNumber?: number; rewardedAt?: string | null; rewardAmount?: number };
 
 export const EconomyStoryModal: React.FC<{ isOpen: boolean; onClose: () => void; user: User }> = ({ isOpen, onClose, user }) => {
   const teacherId = user.role === Role.TEACHER ? user.userId : String(user.teacher_id || '');
@@ -21,7 +21,6 @@ export const EconomyStoryModal: React.FC<{ isOpen: boolean; onClose: () => void;
   const [checked, setChecked] = useState<string[]>([]);
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardValue, setRewardValue] = useState('');
-  const [reactingId, setReactingId] = useState('');
 
   const loadTopics = useCallback(async () => {
     if (!teacherId) return;
@@ -32,9 +31,9 @@ export const EconomyStoryModal: React.FC<{ isOpen: boolean; onClose: () => void;
   const loadComments = useCallback(async (topic: Topic) => {
     setSelected(topic);
     setChecked([]);
-    try { setComments(await api.getEconomyStoryComments(topic.id, user.userId) as Comment[]); setError(''); }
+    try { setComments(await api.getEconomyStoryComments(topic.id) as Comment[]); setError(''); }
     catch (e: any) { setError(e.message || '의견을 불러오지 못했습니다.'); }
-  }, [user.userId]);
+  }, []);
 
   useEffect(() => { if (isOpen) loadTopics(); }, [isOpen, loadTopics]);
   useEffect(() => {
@@ -72,13 +71,6 @@ export const EconomyStoryModal: React.FC<{ isOpen: boolean; onClose: () => void;
     } catch (e: any) { setError(e.message || '보상을 지급하지 못했습니다.'); }
     finally { setBusy(false); }
   };
-  const toggleReaction = async (comment: Comment) => {
-    if (user.role!==Role.STUDENT || comment.userId===user.userId || reactingId) return;
-    setReactingId(comment.id);setError('');
-    try { const result=await api.toggleEconomyStoryReaction(comment.id,user.userId);setComments(rows=>rows.map(row=>row.id===comment.id?{...row,reactionCount:result.count,reactedByMe:result.reacted}:row));void playButtonSound('action'); }
-    catch(e:any){setError(e.message||'공감을 표시하지 못했습니다.');}
-    finally{setReactingId('');}
-  };
 
   return <div className="fixed inset-0 z-[240] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm" onClick={onClose}>
     <section className="relative flex h-[min(88vh,780px)] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-[#f4f8ff] shadow-2xl" onClick={e=>e.stopPropagation()}>
@@ -105,7 +97,7 @@ export const EconomyStoryModal: React.FC<{ isOpen: boolean; onClose: () => void;
             <div className="rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-white shadow-lg"><div className="flex justify-between gap-4"><h3 className="text-xl font-black">{selected.title}</h3>{user.role===Role.TEACHER&&<button disabled={busy} onClick={async()=>{setBusy(true);try{await api.setEconomyStoryStatus(teacherId,selected.id,!selected.isOpen);await loadTopics();setSelected({...selected,isOpen:!selected.isOpen});}catch(e:any){setError(e.message)}finally{setBusy(false)}}} className="rounded-xl bg-white/15 px-3 py-2 text-xs font-black">{selected.isOpen?'이야기 종료':'다시 열기'}</button>}</div><p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-blue-50">{selected.prompt}</p></div>
             {user.role===Role.STUDENT&&selected.isOpen&&<div className="mt-4 rounded-2xl border border-blue-100 bg-white p-4"><label className="text-sm font-black text-slate-800">나의 생각</label><div className="mt-2 flex gap-2"><input value={opinion} onChange={e=>setOpinion(e.target.value)} maxLength={300} placeholder="한 문장으로 생각을 적어보세요." className="min-w-0 flex-1 rounded-xl border p-3 text-sm"/><button disabled={busy||!opinion.trim()} onClick={addComment} className="rounded-xl bg-indigo-600 px-5 font-black text-white disabled:opacity-40">등록</button></div></div>}
             {user.role===Role.TEACHER&&<div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4"><div><p className="font-black text-amber-900">좋은 의견 보상</p><p className="text-xs text-amber-700">보상할 댓글의 체크박스를 선택하세요. 이미 보상한 댓글은 다시 선택할 수 없습니다.</p></div><button disabled={!checked.length} onClick={()=>setRewardOpen(true)} className="rounded-xl bg-amber-500 px-5 py-3 text-sm font-black text-white disabled:opacity-40">선택 의견 보상 ({checked.length})</button></div>}
-            <div className="mt-5 space-y-3">{comments.map(comment=><article key={comment.id} className={`rounded-2xl border bg-white p-4 shadow-sm ${checked.includes(comment.id)?'border-amber-400 ring-2 ring-amber-100':'border-slate-100'}`}><div className="flex justify-between gap-3"><div className="flex items-center gap-3">{user.role===Role.TEACHER&&<input type="checkbox" aria-label={`${comment.userName} 의견 선택`} disabled={Boolean(comment.rewardedAt)} checked={checked.includes(comment.id)} onChange={e=>setChecked(values=>e.target.checked?[...values,comment.id]:values.filter(id=>id!==comment.id))} className="h-5 w-5 accent-amber-500"/>}<strong className="text-sm text-slate-900">{comment.userNumber ? `${comment.userNumber}번 `:''}{comment.userName}</strong>{comment.rewardedAt&&<span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700">보상 완료 {Number(comment.rewardAmount||0).toLocaleString()}{user.currencyUnit||'톨'}</span>}</div><time className="text-[10px] text-slate-400">{new Date(comment.createdAt).toLocaleString()}</time></div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{comment.content}</p><div className="mt-3 flex justify-end">{user.role===Role.STUDENT&&comment.userId!==user.userId?<button onClick={()=>toggleReaction(comment)} disabled={Boolean(reactingId)} aria-pressed={comment.reactedByMe} className={`rounded-full border px-3 py-1.5 text-xs font-black transition active:scale-95 disabled:opacity-50 ${comment.reactedByMe?'border-rose-200 bg-rose-50 text-rose-600':'border-slate-200 bg-white text-slate-500 hover:border-rose-200 hover:text-rose-500'}`}>{comment.reactedByMe?'♥':'♡'} 공감 {comment.reactionCount}</button>:<span className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-500">♡ 공감 {comment.reactionCount}</span>}</div></article>)}</div>
+            <div className="mt-5 space-y-3">{comments.map(comment=><article key={comment.id} className={`rounded-2xl border bg-white p-4 shadow-sm ${checked.includes(comment.id)?'border-amber-400 ring-2 ring-amber-100':'border-slate-100'}`}><div className="flex justify-between gap-3"><div className="flex items-center gap-3">{user.role===Role.TEACHER&&<input type="checkbox" aria-label={`${comment.userName} 의견 선택`} disabled={Boolean(comment.rewardedAt)} checked={checked.includes(comment.id)} onChange={e=>setChecked(values=>e.target.checked?[...values,comment.id]:values.filter(id=>id!==comment.id))} className="h-5 w-5 accent-amber-500"/>}<strong className="text-sm text-slate-900">{comment.userNumber ? `${comment.userNumber}번 `:''}{comment.userName}</strong>{comment.rewardedAt&&<span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-700">보상 완료 {Number(comment.rewardAmount||0).toLocaleString()}{user.currencyUnit||'톨'}</span>}</div><time className="text-[10px] text-slate-400">{new Date(comment.createdAt).toLocaleString()}</time></div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{comment.content}</p></article>)}</div>
           </> : <div className="flex h-full items-center justify-center text-center text-slate-400"><div><img src="/design/student-page/economy-story.webp" alt="" className="mx-auto mb-3 h-24 w-24 object-contain"/><p className="font-black">왼쪽에서 이야기 주제를 선택하세요.</p></div></div>}
           {error&&<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
           {feedback&&<p role="status" className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{feedback}</p>}
