@@ -31,6 +31,37 @@ const AppContent: React.FC = () => {
       if (next) localStorage.setItem(teacherViewKey, next); else localStorage.removeItem(teacherViewKey);
   };
 
+  const selectTeacherView = (next: 'admin' | 'banker' | 'mart' | 'student' | 'donation' | null) => {
+      if (next === 'student') {
+          window.history.pushState({ ...window.history.state, classBankTeacherFlow: 'student-selection' }, document.title);
+      }
+      setTeacherActiveView(next);
+  };
+
+  useEffect(() => {
+      if (currentUser?.role !== Role.TEACHER) return;
+
+      if (!teacherActiveView) {
+          window.history.replaceState({ ...window.history.state, classBankTeacherFlow: 'teacher-menu' }, document.title);
+      } else if (teacherActiveView === 'student' && !window.history.state?.classBankTeacherFlow) {
+          window.history.replaceState({ ...window.history.state, classBankTeacherFlow: 'student-selection' }, document.title);
+      }
+
+      const handleTeacherHistory = (event: PopStateEvent) => {
+          const flow = event.state?.classBankTeacherFlow;
+          if (flow === 'student-selection' || flow === 'student-detail') {
+              setTeacherActiveViewState('student');
+              localStorage.setItem(teacherViewKey, 'student');
+              return;
+          }
+          setTeacherActiveViewState(null);
+          localStorage.removeItem(teacherViewKey);
+      };
+
+      window.addEventListener('popstate', handleTeacherHistory);
+      return () => window.removeEventListener('popstate', handleTeacherHistory);
+  }, [currentUser?.role, teacherActiveView, teacherViewKey]);
+
   useEffect(() => {
     const handleTokenLogin = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -111,7 +142,7 @@ const AppContent: React.FC = () => {
   // 선생님인 경우 통합 메뉴 페이지 로직
   if (currentUser.role === Role.TEACHER) {
       if (!teacherActiveView) {
-          return <RoleSelectionPage onSelect={setTeacherActiveView} />;
+          return <RoleSelectionPage onSelect={selectTeacherView} />;
       }
 
       return (

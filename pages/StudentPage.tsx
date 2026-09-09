@@ -69,10 +69,23 @@ const ConfirmModal: React.FC<{
     );
 };
 
-const StudentSelectionView: React.FC<{ students: User[], onSelect: (s: User) => void }> = ({ students, onSelect }) => {
+const StudentSelectionView: React.FC<{ students: User[], onSelect: (s: User) => void, onBackToMenu?: () => void }> = ({ students, onSelect, onBackToMenu }) => {
     return (
         <div className="p-4 flex flex-col h-full bg-[#F2F4F7]">
-            <h2 className="text-2xl font-black text-gray-900 mb-6 px-2 tracking-tight">학생을 선택하세요</h2>
+            <div className="mb-6 flex items-center justify-between gap-3 px-2">
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">학생을 선택하세요</h2>
+                {onBackToMenu && (
+                    <button
+                        type="button"
+                        onClick={onBackToMenu}
+                        className="hidden portrait:inline-flex md:hidden shrink-0 items-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-black text-blue-700 shadow-sm active:scale-95"
+                        aria-label="교사 메인 화면으로 이동"
+                    >
+                        <HomeIcon className="h-4 w-4" />
+                        메인 화면
+                    </button>
+                )}
+            </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                 {students.map(s => (
                     <button
@@ -1544,6 +1557,59 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     const [activeStudent, setActiveStudent] = useState<User | null>(null);
     const [students, setStudents] = useState<User[]>([]);
 
+    const goToTeacherMenu = useCallback(() => {
+        window.history.replaceState({ ...window.history.state, classBankTeacherFlow: 'teacher-menu' }, document.title);
+        setActiveStudent(null);
+        setAccount(null);
+        onBackToMenu?.();
+    }, [onBackToMenu]);
+
+    const selectStudent = useCallback((student: User) => {
+        window.history.pushState({
+            ...window.history.state,
+            classBankTeacherFlow: 'student-detail',
+            classBankStudentId: student.userId,
+        }, document.title);
+        setAccount(null);
+        setActiveStudent(student);
+        setView('home');
+    }, []);
+
+    const goToStudentSelection = useCallback(() => {
+        if (window.history.state?.classBankTeacherFlow === 'student-detail') {
+            window.history.back();
+            return;
+        }
+        window.history.replaceState({ ...window.history.state, classBankTeacherFlow: 'student-selection' }, document.title);
+        setActiveStudent(null);
+        setAccount(null);
+    }, []);
+
+    useEffect(() => {
+        if (currentUser?.role !== Role.TEACHER || !onBackToMenu) return;
+
+        if (!window.history.state?.classBankTeacherFlow) {
+            window.history.replaceState({ ...window.history.state, classBankTeacherFlow: 'student-selection' }, document.title);
+        }
+
+        const handleStudentHistory = (event: PopStateEvent) => {
+            if (event.state?.classBankTeacherFlow === 'student-detail') {
+                const student = students.find(item => item.userId === event.state?.classBankStudentId);
+                if (student) {
+                    setAccount(null);
+                    setActiveStudent(student);
+                    setView('home');
+                }
+                return;
+            }
+            setActiveStudent(null);
+            setAccount(null);
+        };
+
+        window.addEventListener('popstate', handleStudentHistory);
+        return () => window.removeEventListener('popstate', handleStudentHistory);
+    }, [currentUser?.role, onBackToMenu, students]);
+
     useEffect(() => {
         if (initialView && ['home', 'transfer', 'stocks', 'savings', 'funds'].includes(initialView)) {
             setView(initialView as View);
@@ -1590,7 +1656,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     const renderView = () => {
         if (currentUser.role === Role.TEACHER && !activeStudent) {
-            return <StudentSelectionView students={students} onSelect={student=>{setAccount(null);setActiveStudent(student);setView('home');}} />;
+            return <StudentSelectionView students={students} onSelect={selectStudent} onBackToMenu={goToTeacherMenu} />;
         }
 
         if (isLoading) return (
@@ -1616,7 +1682,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     return (
         <div className="student-studio h-full min-h-0 flex flex-col overflow-hidden">
-            <header className="student-topbar"><div className="student-brand">Class Bank<span aria-hidden="true">✦</span></div><div className="student-profile">{currentUser.role===Role.TEACHER&&activeStudent&&<button onClick={()=>{setActiveStudent(null);setAccount(null);}} className="student-pick-button rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">학생 목록</button>}<div className="student-header-guide"><EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name}/></div><span className="student-avatar"><img src="/design/student-page/student-avatar-neutral.webp" alt=""/></span><div><span className="student-eyebrow">나의 경제 교실</span><strong>{activeStudent ? activeStudent.name : currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name}</strong></div></div></header>
+            <header className="student-topbar"><div className="student-brand">Class Bank<span aria-hidden="true">✦</span></div><div className="student-profile">{currentUser.role===Role.TEACHER&&activeStudent&&<button onClick={goToStudentSelection} className="student-pick-button rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">학생 목록</button>}<div className="student-header-guide"><EconomyTutorialLauncher userId={effectiveUser.userId} userName={effectiveUser.name}/></div><span className="student-avatar"><img src="/design/student-page/student-avatar-neutral.webp" alt=""/></span><div><span className="student-eyebrow">나의 경제 교실</span><strong>{activeStudent ? activeStudent.name : currentUser.role === Role.TEACHER ? '학생 페이지' : currentUser.name}</strong></div></div></header>
             <div className="student-workspace flex min-h-0 flex-1">
             <aside className="student-rail hidden md:flex flex-col shrink-0 z-30">
                 {(activeStudent || currentUser.role === Role.STUDENT) && (
@@ -1639,7 +1705,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                 <header className="md:hidden bg-white/80 backdrop-blur-xl px-6 py-4 flex justify-between items-center border-b border-gray-100 sticky top-0 z-40">
                     <div className="flex items-center">
                         {currentUser.role === Role.TEACHER && activeStudent && (
-                            <button onClick={() => { setActiveStudent(null); setAccount(null); localStorage.removeItem(`class_bank_active_student_${currentUser.userId}`); }} className="mr-4 p-2 -ml-2 hover:bg-gray-100 rounded-2xl transition-all"><BackIcon className="w-6 h-6 text-gray-800" /></button>
+                            <button onClick={goToStudentSelection} className="mr-4 p-2 -ml-2 hover:bg-gray-100 rounded-2xl transition-all" aria-label="학생 목록으로 이동"><BackIcon className="w-6 h-6 text-gray-800" /></button>
                         )}
                         <div>
                             <h1 className="text-lg font-black text-gray-900 leading-tight tracking-tight">
