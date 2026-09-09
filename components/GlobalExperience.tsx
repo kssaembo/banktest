@@ -32,7 +32,7 @@ export default function GlobalExperience({ children }: { children: React.ReactNo
   return <>
     {children}<RewardAnimation/>
     <PwaInstallButton />
-    <button type="button" onClick={toggleSound} aria-label={soundEnabled ? '버튼 효과음 끄기' : '버튼 효과음 켜기'} title={soundEnabled ? '효과음 켜짐' : '효과음 꺼짐'} className="fixed right-4 bottom-20 md:bottom-4 z-[240] w-11 h-11 rounded-full bg-white/95 border border-blue-100 shadow-lg text-xl hover:bg-blue-50 active:scale-95">
+    <button type="button" onClick={toggleSound} aria-label={soundEnabled ? '버튼 효과음 끄기' : '버튼 효과음 켜기'} title={soundEnabled ? '효과음 켜짐' : '효과음 꺼짐'} className="fixed right-3 bottom-3 md:right-4 md:bottom-4 z-[240] w-10 h-10 md:w-11 md:h-11 rounded-full bg-white/95 border border-blue-100 shadow-lg text-lg md:text-xl hover:bg-blue-50 active:scale-95">
       {soundEnabled ? '🔊' : '🔇'}
     </button>
     {message && <div className="fixed inset-0 z-[300] bg-slate-950/55 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="알림" onClick={() => setMessage(null)}>

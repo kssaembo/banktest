@@ -7,7 +7,8 @@ import { Account, StockProduct, StockProductWithDetails, User, Role, SavingsProd
 import { LogoutIcon, StockIcon, XIcon, PlusIcon, CheckIcon, ErrorIcon, TransferIcon, NewPiggyBankIcon, ArrowDownIcon, ArrowUpIcon } from '../components/icons';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { FeatureGuide, OverviewCards } from '../components/FeatureGuide';
-import { ChartModal, DonutCard, VerticalBars } from '../components/VisualAnalytics';
+import { ChartModal, DonutCard, SegmentedBar, VerticalBars } from '../components/VisualAnalytics';
+import { StockTransactionsModal } from './TeacherDashboard';
 
 type View = 'deposit_withdraw' | 'stock_exchange' | 'savings_management';
 
@@ -128,7 +129,7 @@ const DepositWithdrawView: React.FC = () => {
                         <tr>
                             <th className="p-3 text-left w-[22.5%]">번호</th>
                             <th className="p-3 text-left w-[25%]">이름</th>
-                            <th className="p-3 text-left w-[16%]">계좌</th>
+                            <th className="hidden p-3 text-left w-[16%] sm:table-cell">계좌</th>
                             <th className="p-3 text-right w-[20%]">현재 잔액</th>
                             <th className="p-3 text-center w-[40%]">작업</th>
                         </tr>
@@ -138,12 +139,12 @@ const DepositWithdrawView: React.FC = () => {
                             <tr key={s.userId} className="border-t">
                                 <td className="p-2">{s.grade}-{s.class} {s.number}</td>
                                 <td className="p-2 font-medium">{s.name}</td>
-                                <td className="p-2 font-mono text-xs">{s.account?.accountId.split(' ').pop()}</td>
+                                <td className="hidden p-2 font-mono text-xs sm:table-cell">{s.account?.accountId.split(' ').pop()}</td>
                                 <td className="p-2 text-right font-bold text-indigo-700 whitespace-nowrap">{(s.account?.balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} {unit}</td>
                                 <td className="p-2 text-center">
                                     <div className="flex justify-center gap-2">
-                                        <button onClick={() => { setSelectedStudent(s); setMode('deposit'); }} className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 text-base whitespace-nowrap">입금</button>
-                                        <button onClick={() => { setSelectedStudent(s); setMode('withdraw'); }} className="px-4 py-2 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600 text-base whitespace-nowrap">출금</button>
+                                        <button onClick={() => { setSelectedStudent(s); setMode('deposit'); }} className="px-2 py-2 sm:px-4 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 text-base whitespace-nowrap"><span className="sm:hidden">입</span><span className="hidden sm:inline">입금</span></button>
+                                        <button onClick={() => { setSelectedStudent(s); setMode('withdraw'); }} className="px-2 py-2 sm:px-4 bg-red-500 text-white font-semibold rounded-md hover:bg-red-600 text-base whitespace-nowrap"><span className="sm:hidden">출</span><span className="hidden sm:inline">출금</span></button>
                                     </div>
                                 </td>
                             </tr>
@@ -288,6 +289,7 @@ const StockExchangeView: React.FC = () => {
     const [chartData, setChartData] = useState<StockHistory[]>([]);
     const [chartLoading, setChartLoading] = useState(false);
     const [stockHolders,setStockHolders]=useState<Record<string,{studentName:string;quantity:number}[]>>({});
+    const [showMonitoring,setShowMonitoring]=useState(false);
 
     const fetchStocks = useCallback(async () => {
         setLoading(true);
@@ -340,7 +342,7 @@ const StockExchangeView: React.FC = () => {
 
     return (
         <div>
-            <div className="flex flex-wrap justify-between items-center mb-4 gap-2"><div className="flex items-center gap-3"><h2 className="text-2xl font-black text-slate-800">주식거래소</h2><FeatureGuide title="주식거래소 사용 안내" label="주식거래소 사용 안내" items={[{title:'종목을 관리해요',description:'종목을 만들고 현재 가격을 변경합니다.'},{title:'투자 현황을 봐요',description:'그래프를 눌러 주주 명부를 확인합니다.'}]}/></div><div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-between items-center mb-4 gap-2"><div className="flex items-center gap-3"><h2 className="text-2xl font-black text-slate-800">주식거래소</h2><FeatureGuide title="주식거래소 사용 안내" label="주식거래소 사용 안내" items={[{title:'종목을 관리해요',description:'종목을 만들고 현재 가격을 변경합니다.'},{title:'투자 현황을 봐요',description:'그래프를 눌러 주주 명부를 확인합니다.'}]}/><button onClick={()=>setShowMonitoring(true)} className="hidden rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700 shadow-sm transition hover:bg-indigo-100 md:inline-flex">주식 관리·이상거래 탐지</button></div><div className="flex flex-wrap gap-2">
                 <button onClick={() => setShowModal('volatility')} className="px-3 py-2 bg-blue-500 text-white text-xs font-semibold rounded-lg shadow hover:bg-blue-600">민감도 조정</button>
                 <button onClick={() => setShowModal('add')} className="px-3 py-2 bg-green-600 text-white text-xs font-semibold rounded-lg shadow hover:bg-green-700">종목 추가</button>
                 <button onClick={() => {
@@ -379,8 +381,8 @@ const StockExchangeView: React.FC = () => {
                                     </td>
                                     <td className="p-3 text-right font-mono">{s.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</td>
                                     <td className="p-3 text-right font-mono">
-                                         <button onClick={() => handleOpenHoldersModal(s)} className="hover:underline" disabled={s.totalQuantity === 0}>
-                                            {s.totalQuantity.toLocaleString()}주
+                                         <button onClick={() => handleOpenHoldersModal(s)} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 font-black text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40" disabled={s.totalQuantity === 0} title="클릭하여 주주 명부 보기">
+                                            {s.totalQuantity.toLocaleString()}주 <span aria-hidden="true">›</span>
                                          </button>
                                     </td>
                                     <td className="p-3 text-right font-mono">{s.valuation.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</td>
@@ -423,6 +425,7 @@ const StockExchangeView: React.FC = () => {
             {showModal === 'delete' && <DeleteStockModal stockIds={stocksToDelete} onClose={() => setShowModal(null)} onComplete={() => { fetchStocks(); setDeleteMode(false); setStocksToDelete([]); }}/>}
             {showModal === 'holders' && selectedStock && <StockHoldersModal stock={selectedStock} onClose={() => setShowModal(null)} />}
             {showModal === 'volatility' && <VolatilityModal stocks={stocks} onClose={() => setShowModal(null)} onComplete={fetchStocks} />}
+            {showMonitoring&&<StockTransactionsModal onClose={()=>setShowMonitoring(false)}/>}
         </div>
     );
 };
@@ -531,8 +534,9 @@ const StockHoldersModal: React.FC<{ stock: StockProductWithDetails, onClose: () 
     
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-bold mb-4">{stock.name} 주주 명부</h3>
+                {holders.length>0&&<SegmentedBar title="주주별 보유 수량 비율" unit="주" rows={[...holders].sort((a,b)=>b.quantity-a.quantity).map(holder=>({name:holder.studentName,value:Number(holder.quantity)}))}/>} 
                 <div className="max-h-60 overflow-y-auto">
                     <table className="w-full text-sm">
                         <thead><tr className="border-b"><th className="p-2 text-left">학생명</th><th className="p-2 text-right">보유 주식</th><th className="p-2 text-right">보유 비율</th></tr></thead>
@@ -711,7 +715,7 @@ const SavingsManagementView: React.FC = () => {
                         {products.map(p => (
                             <tr key={p.id} onClick={() => !deleteMode && handleOpenEnrolleesModal(p)} className={`border-t ${!deleteMode && 'cursor-pointer hover:bg-gray-50'}`}>
                                 {deleteMode && <td className="p-3 text-center"><input type="checkbox" checked={productsToDelete.includes(p.id)} onChange={() => handleSelectForDelete(p.id)} /></td>}
-                                <td className="p-3 font-medium">{p.name}</td>
+                                <td className="p-3 font-medium"><button onClick={event=>{event.stopPropagation();handleOpenEnrolleesModal(p)}} disabled={deleteMode} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left font-black text-blue-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-100 disabled:border-transparent disabled:bg-transparent disabled:p-0 disabled:shadow-none" title="클릭하여 가입 현황 보기">{p.name} <span aria-hidden="true">›</span></button></td>
                                 <td className="p-3 text-right font-mono">{p.maturityDays}</td>
                                 <td className="p-3 text-right font-mono text-blue-600">{(p.rate * 100).toFixed(1)}%</td>
                             </tr>
@@ -828,8 +832,9 @@ const SavingEnrolleesModal: React.FC<{ product: SavingsProduct, onClose: () => v
     
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-lg" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
                 <h3 className="text-xl font-bold mb-4">{product.name} 가입자 명단</h3>
+                {enrollees.length>0&&<SegmentedBar title="학생별 예금 가입 금액 비율" unit={unit} rows={[...enrollees].sort((a,b)=>b.amount-a.amount).map(enrollee=>({name:enrollee.studentName,value:Number(enrollee.amount)}))}/>} 
                 <div className="max-h-60 overflow-y-auto">
                     {enrollees.length > 0 ? (
                         <table className="w-full text-sm">

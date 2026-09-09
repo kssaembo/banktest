@@ -32,7 +32,7 @@ export default function PwaInstallButton() {
         await promptEvent.userChoice;
         setPromptEvent(null);
       }}
-      className="fixed bottom-32 right-4 z-[239] rounded-2xl border border-blue-200 bg-white/95 px-4 py-3 text-sm font-black text-blue-700 shadow-lg backdrop-blur hover:bg-blue-50 active:scale-95 md:bottom-16"
+      className="fixed bottom-16 right-4 z-[239] hidden rounded-2xl border border-blue-200 bg-white/95 px-4 py-3 text-sm font-black text-blue-700 shadow-lg backdrop-blur hover:bg-blue-50 active:scale-95 md:block"
       aria-label="클래스뱅크 앱 설치"
     >
       앱 설치

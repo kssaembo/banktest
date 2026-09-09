@@ -1346,7 +1346,7 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
                 <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">학생 관리</h2><FeatureGuide title="학생 관리 사용 안내" label="학생 관리 사용 안내" items={[{title:'학생을 등록해요',description:'학생 정보와 계좌를 만들고 QR을 발급합니다.'},{title:'정보를 관리해요',description:'학생을 선택해 수정하거나 필요한 학생만 삭제합니다.'}]}/></div>
                 <div className="flex gap-2">
                     <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576] transition-all active:scale-95">학생 추가</button>
-                    <button onClick={openBulkQr} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow hover:bg-green-700 transition-all active:scale-95">QR 일괄 출력</button>
+                    <button onClick={openBulkQr} className="hidden px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow hover:bg-green-700 transition-all active:scale-95 sm:inline-flex">QR 일괄 출력</button>
                     <button
                         onClick={() => setConfirmDelete(true)}
                         className={`px-3 py-2 text-white rounded-lg text-sm font-bold shadow transition-all active:scale-95 ${selectedIds.length > 0 ? 'bg-red-600 hover:bg-red-700 animate-pulse' : 'bg-gray-400 hover:bg-gray-500'}`}
@@ -1364,8 +1364,8 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
                             <th className="p-3 text-left font-bold text-gray-500 uppercase tracking-wider">이름</th>
                             <th className="p-3 text-right font-bold text-gray-500 uppercase tracking-wider px-6">잔액</th>
                             <th className="p-3 text-left font-bold text-gray-500 uppercase tracking-wider">계좌번호</th>
-                            <th className="p-3 text-center font-bold text-gray-500 uppercase tracking-wider">QR</th>
-                            <th className="p-3 text-center font-bold text-gray-500 uppercase tracking-wider">수정</th>
+                            <th className="hidden p-3 text-center font-bold text-gray-500 uppercase tracking-wider sm:table-cell">QR</th>
+                            <th className="hidden p-3 text-center font-bold text-gray-500 uppercase tracking-wider sm:table-cell">수정</th>
                             <th className="p-3 text-center font-bold text-gray-500 uppercase tracking-wider">초기화</th>
                         </tr>
                     </thead>
@@ -1386,12 +1386,12 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
                                         '-'
                                     ) : '-'}
                                 </td>
-                                <td className="p-3 text-center">
+                                <td className="hidden p-3 text-center sm:table-cell">
                                     <button onClick={() => openSingleQr(s)} className="p-1.5 text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all mx-auto" title="개별 QR 코드">
                                         <QrCodeIcon className="w-5 h-5" />
                                     </button>
                                 </td>
-                                <td className="p-3 text-center">
+                                <td className="hidden p-3 text-center sm:table-cell">
                                     <button onClick={() => setEditTarget(s)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all mx-auto" title="정보 수정">
                                         <PencilIcon className="w-5 h-5" />
                                     </button>
@@ -1524,8 +1524,8 @@ const JobManagementView: React.FC<{ refresh: () => void }> = ({ refresh }) => {
             <div className="flex justify-between items-center mb-4">
                 <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">직업 관리</h2><FeatureGuide title="직업 관리 사용 안내" label="직업 관리 사용 안내" items={[{title:'직업을 만들어요',description:'업무와 급여를 설정합니다.'},{title:'학생을 배정해요',description:'담당 학생을 정하고 급여를 지급합니다.'}]}/></div>
                 <div className="flex gap-2">
-                    <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576]">
-                        + 직업 추가
+                    <button onClick={() => setShowAddModal(true)} aria-label="직업 추가" className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576]">
+                        <span className="sm:hidden">＋</span><span className="hidden sm:inline">+ 직업 추가</span>
                     </button>
                     <button onClick={() => setConfirmAction({ type: 'pay_all', data: null })} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow hover:bg-green-700">
                         급여 일괄 지급
@@ -2293,7 +2293,24 @@ const DonationManagementView: React.FC = () => {
     );
 };
 
-const StockTransactionsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const inferStockName=(description:string='')=>description.replace(/(주식|매수|매도|구매|판매|투자|정산)/g,' ').replace(/\s+/g,' ').trim()||'종목 미상';
+const analyzeStockTransactions=(source:any[],start:string,end:string)=>{
+    const from=new Date(start).getTime(),to=new Date(end).getTime();
+    const rows=source.filter(t=>['StockBuy','StockSell'].includes(t.type)&&new Date(t.date).getTime()>=from&&new Date(t.date).getTime()<=to).map(t=>({...t,stock_name:t.stock_name||inferStockName(t.description),cash:Math.abs(Number(t.amount||0)),stamp:new Date(t.date).getTime()})).sort((a,b)=>a.stamp-b.stamp);
+    const collusion:any[]=[];
+    for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length&&rows[j].stamp-rows[i].stamp<=5*60_000;j++)if(rows[i].student_name!==rows[j].student_name&&rows[i].stock_name===rows[j].stock_name&&rows[i].type===rows[j].type)collusion.push({stock_name:rows[i].stock_name,trade_time:rows[j].date,student1:rows[i].student_name,student2:rows[j].student_name});
+    const byStudent=new Map<string,any[]>();rows.forEach(row=>byStudent.set(row.student_name,[...(byStudent.get(row.student_name)||[]),row]));
+    const cooltime:any[]=[],wash:any[]=[],abnormal:any[]=[];
+    byStudent.forEach((studentRows,student_name)=>{
+        for(let i=1;i<studentRows.length;i++){const first=studentRows[i-1],second=studentRows[i],minutes=(second.stamp-first.stamp)/60_000;if(first.type==='StockBuy'&&second.type==='StockSell'&&first.stock_name===second.stock_name&&minutes<=60){const profit=second.cash-first.cash;if(profit>0)cooltime.push({student_name,interval_minutes:minutes,trade1:`${first.stock_name} 매수`,trade2:`${second.stock_name} 매도`,profit_estimate:profit});}}
+        const daily=new Map<string,any[]>();studentRows.forEach(row=>{const day=new Date(row.date).toLocaleDateString('ko-KR');daily.set(day,[...(daily.get(day)||[]),row]);});daily.forEach(dayRows=>{if(dayRows.length>=6)wash.push({student_name,trade_count:dayRows.length,net_cash_flow:dayRows.reduce((sum,row)=>sum+(row.type==='StockSell'?row.cash:-row.cash),0)});});
+        const total_buy=studentRows.filter(row=>row.type==='StockBuy').reduce((sum,row)=>sum+row.cash,0),total_sell=studentRows.filter(row=>row.type==='StockSell').reduce((sum,row)=>sum+row.cash,0),profit=total_sell-total_buy;
+        if(studentRows.length>=4&&profit>0&&(total_buy===0||profit/total_buy>=.1))abnormal.push({student_name,trade_count:studentRows.length,total_buy,total_sell,profit});
+    });
+    return {collusion:collusion.slice(0,50),cooltime:cooltime.sort((a,b)=>b.profit_estimate-a.profit_estimate).slice(0,50),wash:wash.slice(0,50),abnormal:abnormal.sort((a,b)=>b.profit-a.profit).slice(0,50)};
+};
+
+export const StockTransactionsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const { currentUser } = useContext(AuthContext);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -2325,7 +2342,8 @@ const StockTransactionsModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
         if (!currentUser?.userId) return;
         setIsAnalyzing(true);
         try {
-            const data = await api.getSuspiciousTrading(currentUser.userId, startDate + ' 00:00:00', endDate + ' 23:59:59');
+            const rows=transactions.length?transactions:await api.getStockTransactions(currentUser.userId);
+            const data = analyzeStockTransactions(rows, startDate + 'T00:00:00', endDate + 'T23:59:59');
             setMonitoringData(data);
             setIsAnalysisMode(true);
         } catch (e: any) {
@@ -2377,6 +2395,7 @@ const StockTransactionsModal: React.FC<{ onClose: () => void }> = ({ onClose }) 
                                 {isAnalyzing ? '분석 중...' : '부당 거래 분석'}
                             </button>
                         </div>
+                        <p className="mt-3 text-[10px] font-semibold leading-5 text-red-700">최근 60분 내 반복 매수·매도, 하루 6회 이상 거래, 10% 이상 순이익, 같은 종목의 5분 내 유사 거래를 교사가 확인할 대상으로 표시합니다. 탐지 결과만으로 부당 거래를 확정하지 않습니다.</p>
                     </div>
                 )}
 
@@ -2621,18 +2640,6 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                     <NavButton id="donations" label="기부 관리" Icon={TeacherDonationsArtwork} />
                 </nav>
 
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
-                    <button
-                        onClick={() => setShowStockTransactions(true)}
-                        className="w-full flex items-center gap-3 p-4 bg-indigo-50 text-indigo-700 rounded-2xl font-black text-sm hover:bg-indigo-100 transition-all group border border-indigo-100 shadow-sm"
-                    >
-                        <div className="w-6 h-6 flex items-center justify-center">
-                            <TeacherStocksArtwork className="w-8 h-8 group-hover:scale-110 transition-transform" />
-                        </div>
-                        주식 관리
-                    </button>
-                </div>
-
                 <button onClick={handleLogout} className="w-full flex items-center p-3 text-sm text-gray-600 rounded-lg hover:bg-gray-100 mt-auto">
                     <LogoutIcon className="w-10 h-10 mr-3" /> {onBackToMenu ? '메뉴로' : '로그아웃'}
                 </button>
@@ -2656,14 +2663,6 @@ const TeacherDashboard: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMen
                     <MobileNavButton id="funds" label="펀드" Icon={TeacherFundsArtwork} />
                     <MobileNavButton id="donations" label="기부" Icon={TeacherDonationsArtwork} />
                 </nav>
-                <div className="md:hidden px-4 pb-4">
-                    <button
-                        onClick={() => setShowStockTransactions(true)}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-black text-xs border border-indigo-100"
-                    >
-                        <TeacherStocksArtwork className="w-8 h-8" /> 주식 관리
-                    </button>
-                </div>
                 {showStockTransactions && <StockTransactionsModal onClose={() => setShowStockTransactions(false)} />}
             </div>
         </div>

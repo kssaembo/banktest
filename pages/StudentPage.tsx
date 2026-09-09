@@ -1647,7 +1647,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                             </h1>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="hidden gap-2">
                         <button onClick={() => setShowDonationModal(true)} className="p-2.5 bg-pink-50 text-pink-700 rounded-2xl shadow-sm border border-pink-100 transition-all active:scale-90" title="기부왕">
                             <HeartIcon className="w-5 h-5" />
                         </button>

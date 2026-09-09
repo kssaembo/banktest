@@ -249,6 +249,11 @@ const local: LocalApi = {
     if (index >= 0) users.splice(index, 1); else users.push(studentId);
     return { reacted: index < 0, count: users.length };
   },
+  deleteEconomyStoryComments: (actorId, commentIds) => {
+    let deleted=0;
+    Object.entries(demoStoryComments).forEach(([topicId,rows])=>{demoStoryComments[topicId]=rows.filter(comment=>{const allowed=commentIds.includes(comment.id)&&(actorId===teacher||comment.studentId===actorId);if(allowed)deleted+=1;return !allowed;});const topic=demoStories.find(item=>item.id===topicId);if(topic)topic.commentCount=demoStoryComments[topicId].length;});
+    return deleted;
+  },
   rewardEconomyStoryComments: (_teacherId, commentIds, amount) => {
     positive(amount);
     let rewarded = 0;

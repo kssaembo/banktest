@@ -73,7 +73,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
             onClick={logout} 
             className="group flex items-center gap-2 p-3 bg-white rounded-2xl shadow-sm border border-white hover:border-red-100 hover:bg-red-50 transition-all active:scale-95"
           >
-            <span className="text-xs font-bold text-gray-400 group-hover:text-red-500">로그아웃</span>
+            <span className="hidden text-xs font-bold text-gray-400 group-hover:text-red-500 sm:inline">로그아웃</span>
             <LogoutIcon className="w-5 h-5 text-gray-300 group-hover:text-red-500" />
           </button>
         </header>
@@ -88,7 +88,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
               <div className="mr-6 flex h-24 w-24 shrink-0 items-center justify-center rounded-[28px] bg-gradient-to-br from-blue-50 to-white shadow-inner"><img src={role.image} alt="" className="h-24 w-24 object-contain transition-transform group-hover:scale-110" /></div>
               
               <div className="flex-1 pr-4">
-                <h3 className="text-xl font-black text-gray-900 mb-1 group-hover:text-[#0066FF] transition-colors">{role.title}</h3>
+                <h3 className="text-xl font-black text-gray-900 mb-1 group-hover:text-[#0066FF] transition-colors">{role.title.split(' ').map((word,index)=><React.Fragment key={word}>{index>0&&<><br className="sm:hidden"/><span className="hidden sm:inline"> </span></>}{word}</React.Fragment>)}</h3>
                 <p className="text-sm text-gray-400 font-bold leading-snug tracking-tight">{role.desc}</p>
               </div>
               <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-[#0066FF] transition-colors shrink-0">
@@ -100,55 +100,43 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onSelect }) => {
           ))}
         </div>
 
-        {/* 경제 뉴스 및 경제 상식 알기, 경제 자판 연습 버튼 추가 */}
-        <div className="mt-8 flex flex-col md:flex-row justify-center gap-4 flex-wrap">
+        <div className="mt-8 hidden grid-cols-4 gap-3 md:grid">
           <button
             data-sfx="news-open" onClick={() => setShowNewsModal(true)}
-            className="group flex items-center gap-3 px-8 py-5 bg-white rounded-[30px] shadow-[0_8px_25px_rgba(0,0,0,0.03)] border border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] hover:scale-[1.02] hover:border-indigo-100 transition-all active:scale-95 w-full md:w-auto md:min-w-[280px] justify-center"
+            className="group flex min-w-0 items-center justify-center gap-2 rounded-[24px] border border-white bg-white px-3 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-indigo-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95"
           >
             <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
               <img src="/design/news-ai.png" alt="" className="w-12 h-12 object-contain"/>
             </div>
-            <span className="text-lg font-black text-gray-800 group-hover:text-indigo-600 transition-colors">경제 뉴스 바로가기</span>
+            <span className="text-sm font-black text-gray-800 transition-colors group-hover:text-indigo-600 lg:text-base">경제 뉴스</span>
           </button>
 
           <button
             data-sfx="news-open" onClick={() => setShowReadingModal(true)}
-            className="group flex items-center gap-3 px-8 py-5 bg-white rounded-[30px] shadow-[0_8px_25px_rgba(0,0,0,0.03)] border border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] hover:scale-[1.02] hover:border-indigo-100 transition-all active:scale-95 w-full md:w-auto md:min-w-[280px] justify-center text-left"
+            className="group flex min-w-0 items-center justify-center gap-2 rounded-[24px] border border-white bg-white px-3 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-indigo-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95"
           >
             <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
               <img src="/design/asset-savings.png" alt="" className="w-12 h-12 object-contain"/>
             </div>
-            <span className="text-lg font-black text-gray-800 group-hover:text-indigo-600 transition-colors">경제 상식 알기</span>
+            <span className="text-sm font-black text-gray-800 transition-colors group-hover:text-indigo-600 lg:text-base">경제 상식</span>
           </button>
 
           <button
             data-sfx="news-open" onClick={() => setShowTypingModal(true)}
-            className="group flex items-center gap-3 px-8 py-5 bg-white rounded-[30px] shadow-[0_8px_25px_rgba(0,0,0,0.03)] border border-white hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] hover:scale-[1.02] hover:border-amber-100 transition-all active:scale-95 w-full md:w-auto md:min-w-[280px] justify-center text-left"
+            className="group flex min-w-0 items-center justify-center gap-2 rounded-[24px] border border-white bg-white px-3 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-amber-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95"
           >
             <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center group-hover:bg-amber-100 transition-colors">
               <span className="main-keyboard-art"><KeyboardArtwork/></span>
             </div>
-            <span className="text-lg font-black text-gray-800 group-hover:text-amber-600 transition-colors">경제 자판 연습</span>
+            <span className="text-sm font-black text-gray-800 transition-colors group-hover:text-amber-600 lg:text-base">경제 자판</span>
           </button>
-        </div>
-
-        <div className="mt-4 flex flex-col justify-center gap-4 md:flex-row">
           <button
             data-sfx="news-open"
             onClick={() => setShowStoryModal(true)}
-            className="group flex w-full items-center justify-center gap-3 rounded-[26px] border border-white bg-white px-7 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-blue-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95 md:min-w-[280px] md:w-auto"
+            className="group flex min-w-0 items-center justify-center gap-2 rounded-[24px] border border-white bg-white px-3 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-blue-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95"
           >
             <img src="/design/student-page/economy-story.webp" alt="" className="h-11 w-11 object-contain" />
-            <span className="text-lg font-black text-gray-800 group-hover:text-blue-600">경제 이야기</span>
-          </button>
-          <button
-            data-sfx="savings-open"
-            onClick={() => onSelect('donation')}
-            className="group flex w-full items-center justify-center gap-3 rounded-[26px] border border-white bg-white px-7 py-4 shadow-[0_8px_25px_rgba(0,0,0,0.03)] transition-all hover:scale-[1.02] hover:border-pink-100 hover:shadow-[0_15px_35px_rgba(0,0,0,0.06)] active:scale-95 md:min-w-[280px] md:w-auto"
-          >
-            <img src="/design/student-page/donation-king.webp" alt="" className="h-11 w-11 object-contain" />
-            <span className="text-lg font-black text-gray-800 group-hover:text-pink-600">기부왕</span>
+            <span className="text-sm font-black text-gray-800 group-hover:text-blue-600 lg:text-base">경제 이야기</span>
           </button>
         </div>
 
