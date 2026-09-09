@@ -314,6 +314,8 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const pauseStartedAtRef = useRef<number | null>(null);
+  const pausedDurationRef = useRef<number>(0);
   
   // 통계 측정용 시간 기록
   const [startTime, setStartTime] = useState<number>(0);
@@ -422,6 +424,8 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
     setSessionKeystrokes(0);
     setSessionTypingTime(0);
     setAverageSpeed(0);
+    pauseStartedAtRef.current = null;
+    pausedDurationRef.current = 0;
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
@@ -525,8 +529,20 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
     // 현재 단어/글 정답 체크 (정확도가 너무 낮으면 넘어갈 수 없음 - 최소 70% 이상 요건)
     if (accuracy < 70) {
       playSound('error-soft');
+      setIsTimerRunning(false);
+      pauseStartedAtRef.current = Date.now();
       setLocalNotification({
-        text: '정확도가 너무 낮습니다. 오타를 수정해주세요!\n(정확도 70% 이상 완료 필수)'
+        text: '정확도가 너무 낮습니다. 오타를 수정해주세요!\n(정확도 70% 이상 완료 필수)',
+        onClose: () => {
+          const pausedAt = pauseStartedAtRef.current;
+          if (pausedAt !== null) {
+            const pausedFor = Date.now() - pausedAt;
+            pausedDurationRef.current += pausedFor;
+            setItemStartTime(value => value === null ? null : value + pausedFor);
+          }
+          pauseStartedAtRef.current = null;
+          setIsTimerRunning(true);
+        }
       });
       return;
     }
@@ -580,7 +596,7 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
   const handlePracticeSuccess = () => {
     playSound('typing-success');
     setIsTimerRunning(false);
-    const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+    const elapsedSeconds = Math.round((Date.now() - startTime - pausedDurationRef.current) / 1000);
     setTimeSpent(elapsedSeconds);
 
     // 평균 타수 계산 (세션 전체 누적 타수 / 누적 타이핑 시간)

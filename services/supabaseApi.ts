@@ -1170,15 +1170,24 @@ async function setEconomyStoryStatus(teacherId: string, topicId: string, isOpen:
     handleSupabaseError(error, 'setEconomyStoryStatus');
 }
 
-async function getEconomyStoryComments(topicId: string): Promise<any[]> {
-    const { data, error } = await supabase.rpc('get_economy_story_comments', { p_topic: topicId });
+async function getEconomyStoryComments(topicId: string, viewerId?: string): Promise<any[]> {
+    let { data, error } = await supabase.rpc('get_economy_story_comments_with_reactions', { p_topic: topicId, p_viewer: viewerId || null });
+    if (error && (error.code === 'PGRST202' || error.code === '42883')) {
+        ({ data, error } = await supabase.rpc('get_economy_story_comments', { p_topic: topicId }));
+    }
     handleSupabaseError(error, 'getEconomyStoryComments');
-    return (data || []).map((row: any) => ({ id: row.id, content: row.content, createdAt: row.created_at, userId: row.student_id, userName: row.user_name, userNumber: row.user_number, rewardedAt: row.rewarded_at, rewardAmount: Number(row.reward_amount || 0) }));
+    return (data || []).map((row: any) => ({ id: row.id, content: row.content, createdAt: row.created_at, userId: row.student_id, userName: row.user_name, userNumber: row.user_number, rewardedAt: row.rewarded_at, rewardAmount: Number(row.reward_amount || 0), reactionCount: Number(row.reaction_count || 0), reactedByMe: Boolean(row.reacted_by_me) }));
 }
 
 async function addEconomyStoryComment(topicId: string, studentId: string, content: string): Promise<void> {
     const { error } = await supabase.rpc('add_economy_story_comment', { p_topic: topicId, p_student: studentId, p_content: content });
     handleSupabaseError(error, 'addEconomyStoryComment');
+}
+
+async function toggleEconomyStoryReaction(commentId: string, studentId: string): Promise<{ reacted: boolean; count: number }> {
+    const { data, error } = await supabase.rpc('toggle_economy_story_reaction', { p_comment: commentId, p_student: studentId });
+    handleSupabaseError(error, 'toggleEconomyStoryReaction');
+    return { reacted: Boolean(data?.reacted), count: Number(data?.count || 0) };
 }
 
 async function rewardEconomyStoryComments(teacherId: string, commentIds: string[], amount: number): Promise<{ rewarded: number; total: number }> {
@@ -1222,7 +1231,7 @@ const baseApi = {
     getTaxes, createTax, deleteTax, getMyUnpaidTaxes, payTax, getFunds, createFund, deleteFund, joinFund, settleFund, getMyFundInvestments,
     getFundInvestors, issueCurrency, deleteTeacherAccount, getDailyTreasuryTotals,
     getDonations, createDonation, closeDonation, donate, updateDonation, getDonationLogs, getStockTransactions, deleteDonation,
-    getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment, rewardEconomyStoryComments,
+    getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment, toggleEconomyStoryReaction, rewardEconomyStoryComments,
     getMartItems, addMartItem, updateMartItem, deleteMartItem
 };
 

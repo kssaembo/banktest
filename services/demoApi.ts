@@ -231,7 +231,7 @@ const local: LocalApi = {
   getEconomyStories: () => demoStories,
   createEconomyStory: (_tid, title, prompt) => { demoStories.unshift({ id: id(), title, prompt, isOpen: true, createdAt: now(), commentCount: 0 }); },
   setEconomyStoryStatus: (_tid, topicId, isOpen) => { required(demoStories.find(t => t.id === topicId)).isOpen = isOpen; },
-  getEconomyStoryComments: topicId => demoStoryComments[topicId] || [],
+  getEconomyStoryComments: (topicId, viewerId) => (demoStoryComments[topicId] || []).map(comment => ({ ...comment, reactionCount: (comment.reactionUsers || []).length, reactedByMe: (comment.reactionUsers || []).includes(viewerId) })),
   addEconomyStoryComment: (topicId, studentId, content) => {
     const topic = required(demoStories.find(t => t.id === topicId));
     if (!topic.isOpen) throw new Error('종료된 이야기입니다.');
@@ -240,6 +240,14 @@ const local: LocalApi = {
     if (existing) Object.assign(existing, { content, createdAt: now() });
     else rows.unshift({ id: id(), studentId, content, createdAt: now(), userName: user(studentId)?.name || '학생', userNumber: user(studentId)?.number });
     topic.commentCount = rows.length;
+  },
+  toggleEconomyStoryReaction: (commentId, studentId) => {
+    const comment = required(Object.values(demoStoryComments).flat().find(row => row.id === commentId));
+    if (comment.studentId === studentId) throw new Error('내 의견에는 공감할 수 없습니다.');
+    const users: string[] = comment.reactionUsers ||= [];
+    const index = users.indexOf(studentId);
+    if (index >= 0) users.splice(index, 1); else users.push(studentId);
+    return { reacted: index < 0, count: users.length };
   },
   rewardEconomyStoryComments: (_teacherId, commentIds, amount) => {
     positive(amount);
