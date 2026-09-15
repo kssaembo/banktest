@@ -526,6 +526,32 @@ export const EconomyTypingModal: React.FC<EconomyTypingModalProps> = ({ isOpen, 
   const submitCurrentText = () => {
     if (!typedText.trim()) return;
 
+    const targetText = sessionTexts[currentIndex];
+    const hasCompleteEnding = typedText.length === targetText.length
+      && typedText[typedText.length - 1] === targetText[targetText.length - 1];
+
+    // 정확도 통과 여부와 별개로 문장을 끝까지 입력하고 마지막 글자를 맞혀야 합니다.
+    // 마지막 글자 누락·오타·불필요한 추가 입력이 높은 정확도에 묻혀 통과하는 것을 막습니다.
+    if (!hasCompleteEnding) {
+      playSound('error-soft');
+      setIsTimerRunning(false);
+      pauseStartedAtRef.current = Date.now();
+      setLocalNotification({
+        text: '문장의 마지막 글자까지 정확히 입력해주세요!',
+        onClose: () => {
+          const pausedAt = pauseStartedAtRef.current;
+          if (pausedAt !== null) {
+            const pausedFor = Date.now() - pausedAt;
+            pausedDurationRef.current += pausedFor;
+            setItemStartTime(value => value === null ? null : value + pausedFor);
+          }
+          pauseStartedAtRef.current = null;
+          setIsTimerRunning(true);
+        }
+      });
+      return;
+    }
+
     // 현재 단어/글 정답 체크 (정확도가 너무 낮으면 넘어갈 수 없음 - 최소 70% 이상 요건)
     if (accuracy < 70) {
       playSound('error-soft');

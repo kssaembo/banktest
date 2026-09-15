@@ -129,7 +129,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
         api.getStudentStocks(currentUser.userId).then(setMyStocks);
         api.getStudentSavings(currentUser.userId).then(setMySavings);
         api.getMyUnpaidTaxes(currentUser.userId).then(setUnpaidTaxes);
-    }, [account.accountId, currentUser.userId]);
+    }, [account, currentUser.userId]);
 
     const stockValue = myStocks.reduce((sum, item) => sum + (item.quantity * (item.stock?.currentPrice || 0)), 0);
     const savingsValue = mySavings.reduce((sum, item) => sum + item.amount, 0);
@@ -233,7 +233,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                                 <div className="flex items-center gap-1.5 mt-1">
                                     <div className="text-[10px] text-gray-700 font-bold uppercase">{new Date(t.date).toLocaleString()}</div>
                                     <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                                    <div className="text-[11px] text-indigo-600 font-black">잔액: {t.runningBalance.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</div>
+                                    <div className="text-[11px] text-indigo-600 font-black">현금 잔액: {t.runningBalance.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</div>
                                 </div>
                             </div>
                             <div className={`font-black text-lg ${isStudentIncome(t) ? 'text-blue-600' : 'text-red-500'}`}>
@@ -1624,18 +1624,18 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     const handleLogout = onBackToMenu || logout;
 
-    const refreshAccount = useCallback(async () => {
+    const refreshAccount = useCallback(async (silent = false) => {
         const targetUser = (currentUser?.role === Role.TEACHER) ? activeStudent : currentUser;
         if (!targetUser) return;
 
-        setIsLoading(true);
+        if (!silent) setIsLoading(true);
         try {
             const acc = await api.getStudentAccountByUserId(targetUser.userId);
-            setAccount(acc);
+            setAccount(acc ? { ...acc, balance: Number(acc.balance) || 0 } : null);
         } catch (e: any) {
-            setNotification({ type: 'error', text: e.message || '정보를 가져오는데 실패했습니다.' });
+            if (!silent) setNotification({ type: 'error', text: e.message || '정보를 가져오는데 실패했습니다.' });
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     }, [currentUser, activeStudent]);
 
@@ -1646,6 +1646,24 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     }, [currentUser, activeStudent]);
 
     useEffect(() => { refreshAccount(); }, [refreshAccount]);
+
+    useEffect(() => {
+        const targetUser = currentUser?.role === Role.TEACHER ? activeStudent : currentUser;
+        if (!targetUser) return;
+
+        const syncWithoutReloadingScreen = () => {
+            if (document.visibilityState === 'visible') void refreshAccount(true);
+        };
+        const intervalId = window.setInterval(syncWithoutReloadingScreen, 30000);
+        window.addEventListener('focus', syncWithoutReloadingScreen);
+        document.addEventListener('visibilitychange', syncWithoutReloadingScreen);
+
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', syncWithoutReloadingScreen);
+            document.removeEventListener('visibilitychange', syncWithoutReloadingScreen);
+        };
+    }, [currentUser, activeStudent, refreshAccount]);
 
     if (!currentUser) return null;
 
