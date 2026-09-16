@@ -127,12 +127,17 @@ const MessageModal: React.FC<{
 
 // --- Modals ---
 
-const AddStudentModal: React.FC<{ onClose: () => void, onComplete: () => void }> = ({ onClose, onComplete }) => {
+const AddStudentModal: React.FC<{ students: User[], onClose: () => void, onComplete: () => void }> = ({ students, onClose, onComplete }) => {
     const { currentUser } = useContext(AuthContext);
+    const [mode, setMode] = useState<'single' | 'bulk'>('single');
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
     const [classNum, setClassNum] = useState('');
     const [number, setNumber] = useState('');
+    const [bulkGrade, setBulkGrade] = useState('');
+    const [bulkClassNum, setBulkClassNum] = useState('');
+    const [bulkText, setBulkText] = useState('');
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
@@ -144,28 +149,125 @@ const AddStudentModal: React.FC<{ onClose: () => void, onComplete: () => void }>
             onClose();
         } catch (e: any) {
             console.error(e);
-            alert(e.message || '학생 추가 중 오류가 발생했습니다.');
+            setMessage({ type: 'error', text: e.message || '학생 추가 중 오류가 발생했습니다.' });
         } finally {
             setLoading(false);
         }
     };
 
+    const handleBulkSubmit = async () => {
+        if (!currentUser) return;
+        const parsedGrade = Number(bulkGrade);
+        const parsedClass = Number(bulkClassNum);
+        if (!Number.isInteger(parsedGrade) || parsedGrade < 1 || parsedGrade > 6 || !Number.isInteger(parsedClass) || parsedClass < 1) {
+            setMessage({ type: 'error', text: '학년은 1~6, 반은 1 이상의 숫자로 입력해 주세요.' });
+            return;
+        }
+
+        const lines = bulkText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        if (lines.length === 0) {
+            setMessage({ type: 'error', text: '등록할 학생을 한 줄에 한 명씩 입력해 주세요.' });
+            return;
+        }
+        if (lines.length > 50) {
+            setMessage({ type: 'error', text: '안전한 처리를 위해 한 번에 최대 50명까지 등록할 수 있습니다.' });
+            return;
+        }
+
+        const rows: { line: number, number: number, name: string }[] = [];
+        const validationErrors: string[] = [];
+        const inputNumbers = new Set<number>();
+        const existingNumbers = new Set(students
+            .filter(student => student.grade === parsedGrade && student.class === parsedClass)
+            .map(student => Number(student.number)));
+
+        lines.forEach((line, index) => {
+            const parts = line.includes('\t') ? line.split('\t') : line.includes(',') ? line.split(',') : line.match(/^(\d+)\s+(.+)$/)?.slice(1);
+            const studentNumber = Number(parts?.[0]?.trim());
+            const studentName = parts?.slice(1).join(' ').trim() || '';
+            const lineNumber = index + 1;
+            if (!Number.isInteger(studentNumber) || studentNumber < 1 || !studentName) {
+                validationErrors.push(`${lineNumber}번째 줄 형식 오류`);
+                return;
+            }
+            if (inputNumbers.has(studentNumber)) {
+                validationErrors.push(`${lineNumber}번째 줄: ${studentNumber}번이 입력 목록에서 중복됨`);
+                return;
+            }
+            if (existingNumbers.has(studentNumber)) {
+                validationErrors.push(`${lineNumber}번째 줄: ${studentNumber}번은 이미 등록됨`);
+                return;
+            }
+            inputNumbers.add(studentNumber);
+            rows.push({ line: lineNumber, number: studentNumber, name: studentName });
+        });
+
+        if (validationErrors.length > 0) {
+            setMessage({ type: 'error', text: `등록 전에 다음 내용을 수정해 주세요.\n${validationErrors.slice(0, 8).join('\n')}${validationErrors.length > 8 ? `\n외 ${validationErrors.length - 8}건` : ''}` });
+            return;
+        }
+
+        setLoading(true);
+        setMessage(null);
+        let successCount = 0;
+        const failures: string[] = [];
+        for (const row of rows) {
+            try {
+                await api.addStudent(row.name, parsedGrade, parsedClass, row.number, currentUser.userId);
+                successCount++;
+            } catch (error: any) {
+                failures.push(`${row.number}번 ${row.name}: ${error?.message || '등록 실패'}`);
+            }
+        }
+        if (successCount > 0) onComplete();
+        setLoading(false);
+        if (failures.length === 0) {
+            setBulkText('');
+            setMessage({ type: 'success', text: `${successCount}명의 학생을 모두 등록했습니다.` });
+        } else {
+            setMessage({ type: 'error', text: `${successCount}명 등록 완료, ${failures.length}명 실패\n${failures.slice(0, 6).join('\n')}${failures.length > 6 ? `\n외 ${failures.length - 6}건` : ''}` });
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-                <h3 className="text-xl font-bold mb-4">학생 추가</h3>
-                <div className="space-y-4">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="mb-5 flex items-center justify-between">
+                    <h3 className="text-xl font-bold">학생 추가</h3>
+                    <button onClick={onClose} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100" aria-label="닫기"><XIcon className="h-5 w-5" /></button>
+                </div>
+                <div className="mb-5 grid grid-cols-2 rounded-xl bg-gray-100 p-1">
+                    <button onClick={() => { setMode('single'); setMessage(null); }} className={`rounded-lg py-2 text-sm font-bold transition ${mode === 'single' ? 'bg-white text-[#2B548F] shadow-sm' : 'text-gray-500'}`}>개별 등록</button>
+                    <button onClick={() => { setMode('bulk'); setMessage(null); }} className={`rounded-lg py-2 text-sm font-bold transition ${mode === 'bulk' ? 'bg-white text-[#2B548F] shadow-sm' : 'text-gray-500'}`}>일괄 등록</button>
+                </div>
+
+                {mode === 'single' ? <div className="space-y-4">
                     <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="이름" className="w-full p-3 border rounded-lg" />
                     <div className="grid grid-cols-3 gap-2">
-                        <input type="number" value={grade} onChange={e => setGrade(e.target.value)} placeholder="학년" className="w-full p-3 border rounded-lg" />
-                        <input type="number" value={classNum} onChange={e => setClassNum(e.target.value)} placeholder="반" className="w-full p-3 border rounded-lg" />
-                        <input type="number" value={number} onChange={e => setNumber(e.target.value)} placeholder="번호" className="w-full p-3 border rounded-lg" />
+                        <input type="number" min="1" max="6" value={grade} onChange={e => setGrade(e.target.value)} placeholder="학년" className="w-full p-3 border rounded-lg" />
+                        <input type="number" min="1" value={classNum} onChange={e => setClassNum(e.target.value)} placeholder="반" className="w-full p-3 border rounded-lg" />
+                        <input type="number" min="1" value={number} onChange={e => setNumber(e.target.value)} placeholder="번호" className="w-full p-3 border rounded-lg" />
                     </div>
                     <button onClick={handleSubmit} disabled={loading} className="w-full py-3 bg-[#2B548F] text-white font-bold rounded-lg disabled:bg-gray-300">
                         {loading ? '추가 중...' : '추가하기'}
                     </button>
-                    <button onClick={onClose} className="w-full py-2 text-gray-500 font-medium">닫기</button>
-                </div>
+                </div> : <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                        <input type="number" min="1" max="6" value={bulkGrade} onChange={e => setBulkGrade(e.target.value)} placeholder="공통 학년" className="w-full p-3 border rounded-lg" />
+                        <input type="number" min="1" value={bulkClassNum} onChange={e => setBulkClassNum(e.target.value)} placeholder="공통 반" className="w-full p-3 border rounded-lg" />
+                    </div>
+                    <div>
+                        <p className="mb-2 text-xs font-bold text-gray-600">한 줄에 한 명씩 `번호, 이름` 형식으로 입력하세요.</p>
+                        <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} rows={9} placeholder={'1, 김민준\n2, 이서윤\n3, 박지호'} className="w-full resize-none rounded-xl border p-3 font-mono text-sm leading-7 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50" />
+                        <p className="mt-1 text-[11px] text-gray-400">엑셀의 번호·이름 두 열을 복사해서 붙여넣어도 됩니다. 최대 50명</p>
+                    </div>
+                    <button onClick={handleBulkSubmit} disabled={loading} className="w-full py-3 bg-[#2B548F] text-white font-bold rounded-lg disabled:bg-gray-300">
+                        {loading ? '학생을 등록하는 중...' : '일괄 등록하기'}
+                    </button>
+                </div>}
+
+                {message && <div className={`mt-4 whitespace-pre-wrap rounded-xl border p-3 text-sm font-bold ${message.type === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>{message.text}</div>}
+                <button onClick={onClose} disabled={loading} className="mt-3 w-full py-2 text-gray-500 font-medium disabled:text-gray-300">닫기</button>
             </div>
         </div>
     );
@@ -1414,7 +1516,7 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
                 )}
             </div>
 
-            {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} onComplete={refresh} />}
+            {showAddModal && <AddStudentModal students={students} onClose={() => setShowAddModal(false)} onComplete={refresh} />}
             {editTarget && <EditStudentModal student={editTarget} onClose={() => setEditTarget(null)} onComplete={refresh} />}
             {showQrPrintModal && <QrPrintModal students={qrStudents} onClose={() => setShowQrPrintModal(false)} />}
 
