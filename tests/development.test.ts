@@ -64,6 +64,16 @@ test('bank and mart operations conserve combined balances', async () => {
   const final = await balance(student) + (await api.getTeacherAccount())!.balance + (await api.getMartAccountByTeacherId(teacher))!.balance;
   assert.equal(initial, final);
 });
+test('treasury and mart transfers conserve combined balances in both directions', async () => {
+  const beforeTreasury = (await api.getTeacherAccount())!.balance;
+  const beforeMart = (await api.getMartAccountByTeacherId(teacher))!.balance;
+  await api.treasuryMartTransfer(teacher, 70, 'TO_MART');
+  assert.equal((await api.getTeacherAccount())!.balance, beforeTreasury - 70);
+  assert.equal((await api.getMartAccountByTeacherId(teacher))!.balance, beforeMart + 70);
+  await api.treasuryMartTransfer(teacher, 30, 'TO_TREASURY');
+  assert.equal((await api.getTeacherAccount())!.balance, beforeTreasury - 40);
+  assert.equal((await api.getMartAccountByTeacherId(teacher))!.balance, beforeMart + 40);
+});
 test('mart catalog supports add, hide, update and delete without changing balances', async () => {
   const before = await balance(student);
   const item = await api.addMartItem(teacher, { name: '공책', price: 700, category: '학용품' });

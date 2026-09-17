@@ -46,12 +46,13 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
     const [loading, setLoading] = useState(true);
 
     const handleLogout = onBackToMenu || logout;
+    const teacherId = currentUser?.role === Role.TEACHER ? currentUser.userId : (currentUser?.teacher_id || currentUser?.userId || '');
 
     const fetchMartAccount = useCallback(async (silent = false) => {
-        if (currentUser) {
+        if (teacherId) {
             if (!silent) setLoading(true);
             try {
-                const acc = await api.getStudentAccountByUserId(currentUser.userId);
+                const acc = await api.getMartAccountByTeacherId(teacherId);
                 setMartAccount(acc);
             } catch (error) {
                 console.error("Failed to fetch mart account", error);
@@ -59,13 +60,12 @@ const MartPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => 
                 if (!silent) setLoading(false);
             }
         }
-    }, [currentUser]);
+    }, [teacherId]);
 
     useEffect(() => {
         fetchMartAccount();
     }, [fetchMartAccount]);
 
-    const teacherId = currentUser?.role === Role.TEACHER ? currentUser.userId : (currentUser?.teacher_id || currentUser?.userId || '');
     const fetchItems = useCallback(async () => {
         if (!teacherId) return;
         try { setItems(await api.getMartItems(teacherId)); } catch (error) { console.error('Failed to fetch mart items', error); }
@@ -405,10 +405,8 @@ const TransferView: React.FC<{ martAccount: Account, refreshAccount: () => void 
                 const fullAccountId=recipientDetails.account.accountId;
                 message = await api.martTransfer(fullAccountId, parseInt(amount), 'TO_STUDENT');
             } else {
-                if (!currentUser) throw new Error('로그인 정보가 없습니다.');
-                const teacherAcc = await api.getTeacherAccount();
-                if (!teacherAcc) throw new Error('교사(국고) 계좌를 찾을 수 없습니다.');
-                message = await api.transfer(currentUser.userId, teacherAcc.accountId, parseInt(amount), '마트 수익금 송금');
+                if (!martAccount.teacher_id) throw new Error('담당 교사 정보를 찾을 수 없습니다.');
+                message = await api.treasuryMartTransfer(martAccount.teacher_id, parseInt(amount), 'TO_TREASURY');
             }
             
             setMessageModal({ isOpen: true, type: 'success', text: message });

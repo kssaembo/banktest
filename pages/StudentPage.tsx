@@ -23,7 +23,7 @@ import { EconomyStoryModal } from '../components/EconomyStoryModal';
 import { FeatureGuide } from '../components/FeatureGuide';
 import { ChartModal, DonutCard, TrendChart } from '../components/VisualAnalytics';
 
-const studentIncomeTypes = new Set(['Deposit','Salary','StockSell','SavingsMaturity','FundSettle','FundPayout']);
+const studentIncomeTypes = new Set(['Deposit','Salary','StockSell','SavingsCancel','SavingsMaturity','FundSettle','FundPayout']);
 const isStudentIncome = (transaction: Pick<Transaction,'type'|'amount'>) => studentIncomeTypes.has(String(transaction.type)) || (String(transaction.type)==='Transfer' && Number(transaction.amount)>0);
 
 type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds';
@@ -316,7 +316,7 @@ const TransferView: React.FC<{ currentUser: User, account: Account, refreshAccou
         setLoading(true);
         try {
              if (targetType === 'teacher') {
-                const teacherAcc = await api.getTeacherAccount();
+                const teacherAcc = await api.getTeacherAccount(currentUser.teacher_id || currentUser.userId);
                 if (!teacherAcc) throw new Error(`선생님 계좌를 찾을 수 없습니다.`);
                 await api.transfer(currentUser.userId, teacherAcc.accountId, parseInt(amount), memo || `${alias}께 송금`);
              } else if (targetType === 'mart') {

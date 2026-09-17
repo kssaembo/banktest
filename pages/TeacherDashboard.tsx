@@ -55,7 +55,7 @@ const getDDay = (targetDateStr: string) => {
     return Math.floor(diff / (1000 * 60 * 60 * 24));
 };
 
-const creditTypes = new Set(['Deposit','Salary','StockSell','SavingsMaturity','FundPayout','FundSettle']);
+const creditTypes = new Set(['Deposit','Salary','StockSell','SavingsCancel','SavingsMaturity','FundPayout','FundSettle']);
 const signedTransaction = (transaction: any) => creditTypes.has(transaction.type) || (transaction.type==='Transfer' && Number(transaction.amount)>0) ? Math.abs(Number(transaction.amount || 0)) : -Math.abs(Number(transaction.amount || 0));
 const makeBalanceTrend = (transactions: any[], currentBalance: number) => {
     const newest=[...transactions].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime());
@@ -734,15 +734,14 @@ const MartTransferModal: React.FC<{ onClose: () => void, onComplete: () => void 
     const unit = currentUser?.currencyUnit || '권';
 
     useEffect(() => {
-        api.getTeacherAccount().then(setTeacherAccount);
-    }, []);
+        if (currentUser?.userId) api.getTeacherAccount(currentUser.userId).then(setTeacherAccount);
+    }, [currentUser?.userId]);
 
     const handleSubmit = async () => {
         if (!amount || parseInt(amount) <= 0 || !currentUser || !teacherAccount) return;
         setLoading(true);
         try {
-            // 마트 계좌로 송금 (교사 계좌 -> 마트 계좌)
-            await api.martTransfer(teacherAccount.accountId, parseInt(amount), 'FROM_STUDENT');
+            await api.treasuryMartTransfer(currentUser.userId, parseInt(amount), 'TO_MART');
             onComplete();
             onClose();
         } catch (e: any) {

@@ -132,6 +132,11 @@ const local: LocalApi = {
     if (direction === 'FROM_STUDENT') move(acc, mart(), amount, '마트 결제', T.MART); else move(mart(), acc, amount, '마트 환불');
     return '처리되었습니다.';
   },
+  treasuryMartTransfer: (_teacherId, amount, direction) => {
+    if (direction === 'TO_MART') move(treasury(), mart(), amount, '국고에서 마트로 송금');
+    else move(mart(), treasury(), amount, '마트 수익금 국고 송금');
+    return '송금이 완료되었습니다.';
+  },
   getStockProducts: () => state.stockProducts.map(p => {
     const quantity = state.studentStocks.filter(s => s.stockId === p.id).reduce((sum, s) => sum + s.quantity, 0);
     return { ...p, totalQuantity: quantity, valuation: quantity * p.currentPrice };

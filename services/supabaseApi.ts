@@ -402,7 +402,7 @@ const getTeacherAccount = async (teacherIdParam?: string): Promise<Account | nul
         const { data: user } = await supabase
             .from('users')
             .select('userId, role, teacher_id')
-            .or(`userId.eq.${currentUserId},teacher_id.eq.${currentUserId}`)
+            .eq('userId', currentUserId)
             .maybeSingle();
 
         if (user) {
@@ -433,24 +433,17 @@ const getTeacherAccount = async (teacherIdParam?: string): Promise<Account | nul
                 } as Account;
             }
         }
-        const first = treasuryAccounts[0];
-        return {
-            ...first,
-            accountId: first.accountId || first.accountid || first.id
-        } as Account;
+        return null;
     }
 
     // 2. Fallback: query all accounts
     const { data } = await supabase.from('accounts').select('*');
     if (!data || data.length === 0) return null;
 
-    let treasuryAcc = data.find(acc => acc.account_type === 'treasury');
-    if (!treasuryAcc) {
-        if (ids.length > 0) {
-            treasuryAcc = data.find(acc => ids.includes(acc.userId) || ids.includes(acc.teacher_id));
-        }
-        if (!treasuryAcc) treasuryAcc = data[0];
-    }
+    const treasuryAcc = data.find(acc =>
+        ids.includes(acc.userId) || ids.includes(acc.teacher_id)
+    );
+    if (!treasuryAcc) return null;
 
     return {
         ...treasuryAcc,
@@ -564,6 +557,16 @@ const martTransfer = async (studentAccountId: string, amount: number, direction:
     });
     handleSupabaseError(error, 'martTransfer');
     return data;
+};
+
+const treasuryMartTransfer = async (teacherId: string, amount: number, direction: 'TO_MART' | 'TO_TREASURY'): Promise<string> => {
+    const { data, error } = await supabase.rpc('transfer_treasury_mart', {
+        p_teacher_id: teacherId.toString(),
+        p_amount: amount,
+        p_direction: direction
+    });
+    handleSupabaseError(error, 'treasuryMartTransfer');
+    return typeof data === 'string' ? data : '송금이 완료되었습니다.';
 };
 
 const getStockProducts = async (teacherId: string): Promise<StockProductWithDetails[]> => {
@@ -1229,7 +1232,7 @@ const baseApi = {
     login, signupTeacher, loginTeacher, requestRecoveryCode, verifyRecoveryCode, resetTeacherPassword, checkTeacherExists,
     loginWithPassword, verifyAdminPassword, changePassword, resetPassword, loginWithQrToken, getUsersByRole,
     addStudent, updateStudent, deleteStudents, getStudentAccountByUserId, getTeacherAccount, getMartAccountByTeacherId, getTransactionsByAccountId,
-    getRecipientDetailsByAccountId, transfer, studentWithdraw, bankerDeposit, bankerWithdraw, martTransfer,
+    getRecipientDetailsByAccountId, transfer, studentWithdraw, bankerDeposit, bankerWithdraw, martTransfer, treasuryMartTransfer,
     getStockProducts, getStudentStocks, getStockHistory, getStockTradeCounts, getSuspiciousTrading, buyStock, sellStock, addStockProduct, updateStockPrice,
     updateStockVolatility, deleteStockProducts, getStockHolders, getLastStockTradeTime, getSavingsProducts, getStudentSavings,
     joinSavings, cancelSavings, processSavingsMaturity, addSavingsProduct, deleteSavingsProducts, getSavingsEnrollees,
