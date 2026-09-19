@@ -74,6 +74,19 @@ test('treasury and mart transfers conserve combined balances in both directions'
   assert.equal((await api.getTeacherAccount())!.balance, beforeTreasury - 40);
   assert.equal((await api.getMartAccountByTeacherId(teacher))!.balance, beforeMart + 40);
 });
+test('bulk student registration creates every row or rejects the whole batch', async () => {
+  const before = (await api.getUsersByRole('student' as any, teacher)).length;
+  assert.equal(await api.addStudentsBulk([
+    { name: '일괄학생A', grade: 5, classNum: 3, number: 41 },
+    { name: '일괄학생B', grade: 5, classNum: 3, number: 42 },
+  ], teacher), 2);
+  assert.equal((await api.getUsersByRole('student' as any, teacher)).length, before + 2);
+  await assert.rejects(api.addStudentsBulk([
+    { name: '등록되면안됨', grade: 5, classNum: 3, number: 43 },
+    { name: '중복학생', grade: 5, classNum: 3, number: 41 },
+  ], teacher), /이미/);
+  assert.equal((await api.getUsersByRole('student' as any, teacher)).some(row => row.name === '등록되면안됨'), false);
+});
 test('mart catalog supports add, hide, update and delete without changing balances', async () => {
   const before = await balance(student);
   const item = await api.addMartItem(teacher, { name: '공책', price: 700, category: '학용품' });

@@ -108,6 +108,23 @@ const local: LocalApi = {
     state.students.push({ ...state.teacherUser, userId: uid, role: Role.STUDENT, teacher_id: teacher, name, grade, class: cls, number });
     state.accounts.push({ id: id(), accountId: `demo-${uid}`, userId: uid, balance: 0, qrToken: `demo-${id()}`, teacher_id: teacher, account_type: 'personal' });
   },
+  addStudentsBulk: (rows) => {
+    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 50) throw new Error('한 번에 1~50명을 등록해 주세요.');
+    const occupied = new Set(state.students.map(s => `${s.grade}-${s.class}-${s.number}`));
+    const incoming = new Set<string>();
+    rows.forEach(row => {
+      const key = `${row.grade}-${row.classNum}-${row.number}`;
+      if (!row.name?.trim() || !Number.isInteger(row.grade) || row.grade < 1 || row.grade > 6 || !Number.isInteger(row.classNum) || row.classNum < 1 || row.classNum > 99 || !Number.isInteger(row.number) || row.number < 1 || row.number > 99) throw new Error('입력한 학생 정보를 확인해 주세요.');
+      if (occupied.has(key) || incoming.has(key)) throw new Error(`${row.grade}학년 ${row.classNum}반 ${row.number}번은 이미 등록되어 있습니다.`);
+      incoming.add(key);
+    });
+    rows.forEach(row => {
+      const uid = id();
+      state.students.push({ ...state.teacherUser, userId: uid, role: Role.STUDENT, teacher_id: teacher, name: row.name.trim(), grade: row.grade, class: row.classNum, number: row.number });
+      state.accounts.push({ id: id(), accountId: `demo-${uid}`, userId: uid, balance: 0, qrToken: `demo-${id()}`, teacher_id: teacher, account_type: 'personal' });
+    });
+    return rows.length;
+  },
   updateStudent: (uid, name, grade, cls, number) => { Object.assign(required(user(uid)), { name, grade, class: cls, number }); },
   deleteStudents: ids => {
     state.students = state.students.filter(s => !ids.includes(s.userId));

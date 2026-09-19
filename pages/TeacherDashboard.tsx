@@ -127,16 +127,18 @@ const MessageModal: React.FC<{
 
 // --- Modals ---
 
-const AddStudentModal: React.FC<{ students: User[], onClose: () => void, onComplete: () => void }> = ({ students, onClose, onComplete }) => {
+type BulkStudentRow = { id: string; grade: string; classNum: string; number: string; name: string };
+const makeBulkStudentRow = (): BulkStudentRow => ({ id: `${Date.now()}-${Math.random()}`, grade: '', classNum: '', number: '', name: '' });
+
+const AddStudentModal: React.FC<{ students: User[], initialMode?: 'single' | 'bulk', onClose: () => void, onComplete: () => void }> = ({ students, initialMode = 'single', onClose, onComplete }) => {
     const { currentUser } = useContext(AuthContext);
-    const [mode, setMode] = useState<'single' | 'bulk'>('single');
+    const [mode, setMode] = useState<'single' | 'bulk'>(initialMode);
     const [name, setName] = useState('');
     const [grade, setGrade] = useState('');
     const [classNum, setClassNum] = useState('');
     const [number, setNumber] = useState('');
-    const [bulkGrade, setBulkGrade] = useState('');
-    const [bulkClassNum, setBulkClassNum] = useState('');
-    const [bulkText, setBulkText] = useState('');
+    const [bulkRows, setBulkRows] = useState<BulkStudentRow[]>(() => Array.from({ length: 5 }, makeBulkStudentRow));
+    const [bulkErrors, setBulkErrors] = useState<Record<string, string>>({});
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -157,81 +159,49 @@ const AddStudentModal: React.FC<{ students: User[], onClose: () => void, onCompl
 
     const handleBulkSubmit = async () => {
         if (!currentUser) return;
-        const parsedGrade = Number(bulkGrade);
-        const parsedClass = Number(bulkClassNum);
-        if (!Number.isInteger(parsedGrade) || parsedGrade < 1 || parsedGrade > 6 || !Number.isInteger(parsedClass) || parsedClass < 1) {
-            setMessage({ type: 'error', text: '학년은 1~6, 반은 1 이상의 숫자로 입력해 주세요.' });
-            return;
-        }
-
-        const lines = bulkText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-        if (lines.length === 0) {
-            setMessage({ type: 'error', text: '등록할 학생을 한 줄에 한 명씩 입력해 주세요.' });
-            return;
-        }
-        if (lines.length > 50) {
-            setMessage({ type: 'error', text: '안전한 처리를 위해 한 번에 최대 50명까지 등록할 수 있습니다.' });
-            return;
-        }
-
-        const rows: { line: number, number: number, name: string }[] = [];
-        const validationErrors: string[] = [];
-        const inputNumbers = new Set<number>();
-        const existingNumbers = new Set(students
-            .filter(student => student.grade === parsedGrade && student.class === parsedClass)
-            .map(student => Number(student.number)));
-
-        lines.forEach((line, index) => {
-            const parts = line.includes('\t') ? line.split('\t') : line.includes(',') ? line.split(',') : line.match(/^(\d+)\s+(.+)$/)?.slice(1);
-            const studentNumber = Number(parts?.[0]?.trim());
-            const studentName = parts?.slice(1).join(' ').trim() || '';
-            const lineNumber = index + 1;
-            if (!Number.isInteger(studentNumber) || studentNumber < 1 || !studentName) {
-                validationErrors.push(`${lineNumber}번째 줄 형식 오류`);
-                return;
-            }
-            if (inputNumbers.has(studentNumber)) {
-                validationErrors.push(`${lineNumber}번째 줄: ${studentNumber}번이 입력 목록에서 중복됨`);
-                return;
-            }
-            if (existingNumbers.has(studentNumber)) {
-                validationErrors.push(`${lineNumber}번째 줄: ${studentNumber}번은 이미 등록됨`);
-                return;
-            }
-            inputNumbers.add(studentNumber);
-            rows.push({ line: lineNumber, number: studentNumber, name: studentName });
+        const entered = bulkRows.filter(row => row.grade || row.classNum || row.number || row.name.trim());
+        const errors: Record<string, string> = {};
+        const seen = new Set<string>();
+        const existing = new Set(students.map(student => `${student.grade}-${student.class}-${student.number}`));
+        const parsed = entered.map(row => {
+            const gradeValue = Number(row.grade), classValue = Number(row.classNum), numberValue = Number(row.number), studentName = row.name.trim();
+            const key = `${gradeValue}-${classValue}-${numberValue}`;
+            if (!studentName || studentName.length > 50) errors[row.id] = '이름을 입력해 주세요.';
+            else if (!Number.isInteger(gradeValue) || gradeValue < 1 || gradeValue > 6) errors[row.id] = '학년은 1~6입니다.';
+            else if (!Number.isInteger(classValue) || classValue < 1 || classValue > 99) errors[row.id] = '반은 1~99입니다.';
+            else if (!Number.isInteger(numberValue) || numberValue < 1 || numberValue > 99) errors[row.id] = '번호는 1~99입니다.';
+            else if (seen.has(key)) errors[row.id] = '입력 목록에서 중복됩니다.';
+            else if (existing.has(key)) errors[row.id] = '이미 등록된 학생 번호입니다.';
+            seen.add(key);
+            return { name: studentName, grade: gradeValue, classNum: classValue, number: numberValue };
         });
-
-        if (validationErrors.length > 0) {
-            setMessage({ type: 'error', text: `등록 전에 다음 내용을 수정해 주세요.\n${validationErrors.slice(0, 8).join('\n')}${validationErrors.length > 8 ? `\n외 ${validationErrors.length - 8}건` : ''}` });
-            return;
-        }
-
+        setBulkErrors(errors);
+        if (!entered.length) { setMessage({ type: 'error', text: '등록할 학생 정보를 입력해 주세요.' }); return; }
+        if (entered.length > 50) { setMessage({ type: 'error', text: '한 번에 최대 50명까지 등록할 수 있습니다.' }); return; }
+        if (Object.keys(errors).length) { setMessage({ type: 'error', text: '빨간색으로 표시된 행을 수정해 주세요.' }); return; }
         setLoading(true);
         setMessage(null);
-        let successCount = 0;
-        const failures: string[] = [];
-        for (const row of rows) {
-            try {
-                await api.addStudent(row.name, parsedGrade, parsedClass, row.number, currentUser.userId);
-                successCount++;
-            } catch (error: any) {
-                failures.push(`${row.number}번 ${row.name}: ${error?.message || '등록 실패'}`);
-            }
-        }
-        if (successCount > 0) onComplete();
-        setLoading(false);
-        if (failures.length === 0) {
-            setBulkText('');
-            setMessage({ type: 'success', text: `${successCount}명의 학생을 모두 등록했습니다.` });
-        } else {
-            setMessage({ type: 'error', text: `${successCount}명 등록 완료, ${failures.length}명 실패\n${failures.slice(0, 6).join('\n')}${failures.length > 6 ? `\n외 ${failures.length - 6}건` : ''}` });
-        }
+        try {
+            const created = await api.addStudentsBulk(parsed, currentUser.userId);
+            await onComplete();
+            setMessage({ type: 'success', text: `${created}명의 학생과 개인 계좌를 모두 등록했습니다.` });
+            setBulkRows(Array.from({ length: 5 }, makeBulkStudentRow));
+        } catch (error: any) {
+            setMessage({ type: 'error', text: error?.message || '일괄 등록에 실패했습니다. 아무 학생도 등록되지 않았습니다.' });
+        } finally { setLoading(false); }
     };
+
+    const updateBulkRow = (id: string, field: keyof Omit<BulkStudentRow, 'id'>, value: string) => {
+        setBulkRows(rows => rows.map(row => row.id === id ? { ...row, [field]: value } : row));
+        setBulkErrors(errors => { const next = { ...errors }; delete next[id]; return next; });
+        setMessage(null);
+    };
+    const addBulkRows = () => setBulkRows(rows => rows.length >= 50 ? rows : [...rows, makeBulkStudentRow()]);
+    const removeBulkRow = (id: string) => setBulkRows(rows => rows.length === 1 ? [makeBulkStudentRow()] : rows.filter(row => row.id !== id));
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className={`bg-white rounded-2xl shadow-2xl p-5 md:p-6 w-full ${mode === 'bulk' ? 'max-w-3xl' : 'max-w-lg'} max-h-[92vh] overflow-y-auto`}>
                 <div className="mb-5 flex items-center justify-between">
                     <h3 className="text-xl font-bold">학생 추가</h3>
                     <button onClick={onClose} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100" aria-label="닫기"><XIcon className="h-5 w-5" /></button>
@@ -252,14 +222,27 @@ const AddStudentModal: React.FC<{ students: User[], onClose: () => void, onCompl
                         {loading ? '추가 중...' : '추가하기'}
                     </button>
                 </div> : <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2">
-                        <input type="number" min="1" max="6" value={bulkGrade} onChange={e => setBulkGrade(e.target.value)} placeholder="공통 학년" className="w-full p-3 border rounded-lg" />
-                        <input type="number" min="1" value={bulkClassNum} onChange={e => setBulkClassNum(e.target.value)} placeholder="공통 반" className="w-full p-3 border rounded-lg" />
+                    <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs leading-5 text-blue-800">
+                        학년·반·번호·이름을 입력하세요. 모든 행이 정상일 때만 한 번에 등록되며 기본 비밀번호는 <strong>1234</strong>입니다.
                     </div>
-                    <div>
-                        <p className="mb-2 text-xs font-bold text-gray-600">한 줄에 한 명씩 `번호, 이름` 형식으로 입력하세요.</p>
-                        <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} rows={9} placeholder={'1, 김민준\n2, 이서윤\n3, 박지호'} className="w-full resize-none rounded-xl border p-3 font-mono text-sm leading-7 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50" />
-                        <p className="mt-1 text-[11px] text-gray-400">엑셀의 번호·이름 두 열을 복사해서 붙여넣어도 됩니다. 최대 50명</p>
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                        <table className="w-full min-w-[570px] text-sm">
+                            <thead className="bg-slate-50 text-xs font-black text-slate-500">
+                                <tr><th className="w-14 p-2 text-center">순서</th><th className="w-24 p-2">학년</th><th className="w-24 p-2">반</th><th className="w-24 p-2">번호</th><th className="p-2">이름</th><th className="w-16 p-2"><span className="sr-only">삭제</span></th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {bulkRows.map((row, index) => <tr key={row.id} className={bulkErrors[row.id] ? 'bg-red-50' : 'bg-white'}>
+                                    <td className="p-2 text-center text-xs font-black text-slate-400">{index + 1}</td>
+                                    {(['grade','classNum','number'] as const).map(field => <td key={field} className="p-1.5"><input type="number" min="1" max={field === 'grade' ? 6 : 99} value={row[field]} onChange={event => updateBulkRow(row.id, field, event.target.value)} aria-label={`${index + 1}행 ${field === 'grade' ? '학년' : field === 'classNum' ? '반' : '번호'}`} className={`w-full rounded-lg border px-2 py-2.5 text-center font-bold outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 ${bulkErrors[row.id] ? 'border-red-300' : 'border-slate-200'}`} /></td>)}
+                                    <td className="p-1.5"><input type="text" maxLength={50} value={row.name} onChange={event => updateBulkRow(row.id, 'name', event.target.value)} placeholder="학생 이름" aria-label={`${index + 1}행 이름`} className={`w-full rounded-lg border px-3 py-2.5 font-bold outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 ${bulkErrors[row.id] ? 'border-red-300' : 'border-slate-200'}`} />{bulkErrors[row.id] && <p className="mt-1 text-[10px] font-bold text-red-600">{bulkErrors[row.id]}</p>}</td>
+                                    <td className="p-1.5 text-center"><button type="button" onClick={() => removeBulkRow(row.id)} className="rounded-lg px-2 py-2 text-lg font-black text-slate-400 hover:bg-red-50 hover:text-red-500" aria-label={`${index + 1}행 삭제`}>×</button></td>
+                                </tr>)}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                        <button type="button" onClick={addBulkRows} disabled={bulkRows.length >= 50 || loading} className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-50 disabled:opacity-40">+ 빈 행 추가</button>
+                        <span className="text-xs font-bold text-slate-400">입력 {bulkRows.filter(row => row.grade || row.classNum || row.number || row.name.trim()).length}명 · 최대 50명</span>
                     </div>
                     <button onClick={handleBulkSubmit} disabled={loading} className="w-full py-3 bg-[#2B548F] text-white font-bold rounded-lg disabled:bg-gray-300">
                         {loading ? '학생을 등록하는 중...' : '일괄 등록하기'}
@@ -1394,7 +1377,7 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
     const unit = currentUser?.currencyUnit || '권';
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [confirmDelete, setConfirmDelete] = useState(false);
-    const [showAddModal, setShowAddModal] = useState(false);
+    const [addStudentMode, setAddStudentMode] = useState<'single' | 'bulk' | null>(null);
     const [showQrPrintModal, setShowQrPrintModal] = useState(false);
     const [qrStudents, setQrStudents] = useState<(User & { account: Account | null })[]>([]);
     const [resetTarget, setResetTarget] = useState<User | null>(null);
@@ -1446,7 +1429,8 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
             <div className="flex justify-between items-center">
                 <div className="flex flex-wrap items-center gap-3"><h2 className="text-2xl font-bold text-gray-800">학생 관리</h2><FeatureGuide title="학생 관리 사용 안내" label="학생 관리 사용 안내" items={[{title:'학생을 등록해요',description:'학생 정보와 계좌를 만들고 QR을 발급합니다.'},{title:'정보를 관리해요',description:'학생을 선택해 수정하거나 필요한 학생만 삭제합니다.'}]}/></div>
                 <div className="flex gap-2">
-                    <button onClick={() => setShowAddModal(true)} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576] transition-all active:scale-95">학생 추가</button>
+                    <button onClick={() => setAddStudentMode('single')} className="px-3 py-2 bg-[#2B548F] text-white rounded-lg text-sm font-bold shadow hover:bg-[#234576] transition-all active:scale-95">학생 추가</button>
+                    <button onClick={() => setAddStudentMode('bulk')} className="px-3 py-2 border border-[#2B548F] bg-white text-[#2B548F] rounded-lg text-sm font-bold shadow-sm hover:bg-blue-50 transition-all active:scale-95">일괄 추가</button>
                     <button onClick={openBulkQr} className="hidden px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow hover:bg-green-700 transition-all active:scale-95 sm:inline-flex">QR 일괄 출력</button>
                     <button
                         onClick={() => setConfirmDelete(true)}
@@ -1515,7 +1499,7 @@ const StudentManagementView: React.FC<{ students: (User & { account: Account | n
                 )}
             </div>
 
-            {showAddModal && <AddStudentModal students={students} onClose={() => setShowAddModal(false)} onComplete={refresh} />}
+            {addStudentMode && <AddStudentModal students={students} initialMode={addStudentMode} onClose={() => setAddStudentMode(null)} onComplete={refresh} />}
             {editTarget && <EditStudentModal student={editTarget} onClose={() => setEditTarget(null)} onComplete={refresh} />}
             {showQrPrintModal && <QrPrintModal students={qrStudents} onClose={() => setShowQrPrintModal(false)} />}
 

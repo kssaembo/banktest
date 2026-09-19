@@ -320,6 +320,22 @@ const addStudent = async (name: string, grade: number, classNum: number, number:
     handleSupabaseError(error, 'addStudent');
 };
 
+type BulkStudentInput = { name: string; grade: number; classNum: number; number: number };
+
+const addStudentsBulk = async (students: BulkStudentInput[], teacherId: string): Promise<number> => {
+    const { data, error } = await supabase.rpc('add_students_bulk', {
+        p_teacher_id: teacherId,
+        p_students: students.map(student => ({
+            name: student.name.trim(),
+            grade: student.grade,
+            class: student.classNum,
+            number: student.number
+        }))
+    });
+    handleSupabaseError(error, 'addStudentsBulk');
+    return Number(data?.created ?? students.length);
+};
+
 const updateStudent = async (userId: string, name: string, grade: number, classNum: number, number: number): Promise<void> => {
     const { error } = await supabase
         .from('users')
@@ -1231,7 +1247,7 @@ async function deleteMartItem(itemId: string): Promise<void> {
 const baseApi = {
     login, signupTeacher, loginTeacher, requestRecoveryCode, verifyRecoveryCode, resetTeacherPassword, checkTeacherExists,
     loginWithPassword, verifyAdminPassword, changePassword, resetPassword, loginWithQrToken, getUsersByRole,
-    addStudent, updateStudent, deleteStudents, getStudentAccountByUserId, getTeacherAccount, getMartAccountByTeacherId, getTransactionsByAccountId,
+    addStudent, addStudentsBulk, updateStudent, deleteStudents, getStudentAccountByUserId, getTeacherAccount, getMartAccountByTeacherId, getTransactionsByAccountId,
     getRecipientDetailsByAccountId, transfer, studentWithdraw, bankerDeposit, bankerWithdraw, martTransfer, treasuryMartTransfer,
     getStockProducts, getStudentStocks, getStockHistory, getStockTradeCounts, getSuspiciousTrading, buyStock, sellStock, addStockProduct, updateStockPrice,
     updateStockVolatility, deleteStockProducts, getStockHolders, getLastStockTradeTime, getSavingsProducts, getStudentSavings,
