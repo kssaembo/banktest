@@ -157,6 +157,19 @@ test('donation totals and participants update; closed campaigns reject payment',
   await api.closeDonation('donation_1');
   await assert.rejects(api.donate(student, 'donation_1', 50), /종료/);
 });
+test('economy stories keep multiple comments and edit only the selected comment', async () => {
+  const topic = (await api.getEconomyStories(teacher)).find(item => item.isOpen)!;
+  await api.addEconomyStoryComment(topic.id, student, '첫 번째 경제 생각');
+  await api.addEconomyStoryComment(topic.id, student, '두 번째 경제 생각');
+  const added = (await api.getEconomyStoryComments(topic.id, student)).filter(comment => comment.userId === student);
+  assert.equal(added.length, 2);
+  const target = added.find(comment => comment.content === '첫 번째 경제 생각')!;
+  await api.updateEconomyStoryComment(target.id, student, '첫 번째 생각을 수정함');
+  const updated = (await api.getEconomyStoryComments(topic.id, student)).filter(comment => comment.userId === student);
+  assert.equal(updated.length, 2);
+  assert.ok(updated.some(comment => comment.content === '첫 번째 생각을 수정함'));
+  assert.ok(updated.some(comment => comment.content === '두 번째 경제 생각'));
+});
 test('real authentication and SQL-only analysis are explicitly unavailable locally', async () => {
   await assert.rejects(api.signupTeacher('id', 'password', 'name', 'unit'), /실제 인증/);
   await assert.rejects(api.getSuspiciousTrading(teacher, '', ''), /서버 SQL/);

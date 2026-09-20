@@ -253,15 +253,23 @@ const local: LocalApi = {
   getEconomyStories: () => demoStories,
   createEconomyStory: (_tid, title, prompt) => { demoStories.unshift({ id: id(), title, prompt, isOpen: true, createdAt: now(), commentCount: 0 }); },
   setEconomyStoryStatus: (_tid, topicId, isOpen) => { required(demoStories.find(t => t.id === topicId)).isOpen = isOpen; },
-  getEconomyStoryComments: (topicId, viewerId) => (demoStoryComments[topicId] || []).map(comment => ({ ...comment, reactionCount: (comment.reactionUsers || []).length, reactedByMe: (comment.reactionUsers || []).includes(viewerId) })),
+  getEconomyStoryComments: (topicId, viewerId) => (demoStoryComments[topicId] || []).map(comment => ({ ...comment, userId: comment.studentId, reactionCount: (comment.reactionUsers || []).length, reactedByMe: (comment.reactionUsers || []).includes(viewerId) })),
   addEconomyStoryComment: (topicId, studentId, content) => {
     const topic = required(demoStories.find(t => t.id === topicId));
     if (!topic.isOpen) throw new Error('종료된 이야기입니다.');
     const rows = demoStoryComments[topicId] ||= [];
-    const existing = rows.find(row => row.studentId === studentId);
-    if (existing) Object.assign(existing, { content, createdAt: now() });
-    else rows.unshift({ id: id(), studentId, content, createdAt: now(), userName: user(studentId)?.name || '학생', userNumber: user(studentId)?.number });
+    rows.unshift({ id: id(), studentId, content, createdAt: now(), userName: user(studentId)?.name || '학생', userNumber: user(studentId)?.number });
     topic.commentCount = rows.length;
+  },
+  updateEconomyStoryComment: (commentId, studentId, content) => {
+    const entry = Object.entries(demoStoryComments).find(([, rows]) => rows.some(row => row.id === commentId));
+    if (!entry) throw new Error('수정할 의견을 찾을 수 없습니다.');
+    const [topicId, rows] = entry;
+    const topic = required(demoStories.find(item => item.id === topicId));
+    if (!topic.isOpen) throw new Error('종료된 이야기의 의견은 수정할 수 없습니다.');
+    const comment = required(rows.find(row => row.id === commentId));
+    if (comment.studentId !== studentId) throw new Error('본인의 의견만 수정할 수 있습니다.');
+    Object.assign(comment, { content, createdAt: now() });
   },
   toggleEconomyStoryReaction: (commentId, studentId) => {
     const comment = required(Object.values(demoStoryComments).flat().find(row => row.id === commentId));

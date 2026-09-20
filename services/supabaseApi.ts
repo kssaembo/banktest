@@ -1203,6 +1203,11 @@ async function addEconomyStoryComment(topicId: string, studentId: string, conten
     handleSupabaseError(error, 'addEconomyStoryComment');
 }
 
+async function updateEconomyStoryComment(commentId: string, studentId: string, content: string): Promise<void> {
+    const { error } = await supabase.rpc('update_economy_story_comment', { p_comment: commentId, p_student: studentId, p_content: content });
+    handleSupabaseError(error, 'updateEconomyStoryComment');
+}
+
 async function toggleEconomyStoryReaction(commentId: string, studentId: string): Promise<{ reacted: boolean; count: number }> {
     const { data, error } = await supabase.rpc('toggle_economy_story_reaction', { p_comment: commentId, p_student: studentId });
     handleSupabaseError(error, 'toggleEconomyStoryReaction');
@@ -1256,7 +1261,7 @@ const baseApi = {
     getTaxes, createTax, deleteTax, getMyUnpaidTaxes, payTax, getFunds, createFund, deleteFund, joinFund, settleFund, getMyFundInvestments,
     getFundInvestors, issueCurrency, deleteTeacherAccount, getDailyTreasuryTotals,
     getDonations, createDonation, closeDonation, donate, updateDonation, getDonationLogs, getStockTransactions, deleteDonation,
-    getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment, toggleEconomyStoryReaction, deleteEconomyStoryComments, rewardEconomyStoryComments,
+    getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment, updateEconomyStoryComment, toggleEconomyStoryReaction, deleteEconomyStoryComments, rewardEconomyStoryComments,
     getMartItems, addMartItem, updateMartItem, deleteMartItem
 };
 
