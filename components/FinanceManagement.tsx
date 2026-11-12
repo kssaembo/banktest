@@ -85,22 +85,43 @@ export const RealEstateManagement: React.FC = () => {
   useEffect(() => { refresh().catch(error => setNotice(error.message)); }, [refresh]);
   const openForm = (contract?: RealEstateContract) => { setEditing(contract || 'new'); setForm(contract ? { studentUserId: contract.studentUserId, contractType: contract.contractType, propertyName: contract.propertyName, address: contract.address, studentRole: contract.studentRole, transactionAmount: contract.transactionAmount, deposit: contract.deposit, monthlyRent: contract.monthlyRent, contractDate: contract.contractDate, startDate: contract.startDate, endDate: contract.endDate, specialTerms: contract.specialTerms, status: contract.status } : emptyEstate(selected?.userId || students[0]?.userId)); };
   const save = async () => { if (!currentUser) return; try { await api.saveRealEstateContract(currentUser.userId, form, editing === 'new' ? undefined : editing?.id); setEditing(null); setNotice('부동산 계약을 저장했습니다.'); await refresh(); } catch (error: any) { setNotice(error.message); } };
-  const downloadTemplate = () => downloadText('classbank-real-estate-template.csv', ['studentUserId,contractType,propertyName,address,studentRole,transactionAmount,deposit,monthlyRent,contractDate,startDate,endDate,specialTerms,status', `${students[0]?.userId || ''},sale,교실마을 1호,교실 A구역,owner,1000,0,0,${today()},${today()},,특약 없음,active`].join('\n'));
+  const downloadTemplate = () => {
+    const headers = ['학생이름','계약종류','자리번호','학생역할','거래금액','보증금','월세','계약일','시작일','종료일','특약사항','계약상태'];
+    const example = [students[0]?.name || '김민준','월세','3번','임차인',0,1000,100,today(),today(),'','특약 없음','계약중'];
+    downloadText('클래스뱅크-부동산-업로드-양식.csv', [headers, example].map(row => row.map(csvCell).join(',')).join('\n'));
+  };
   const upload = async (file: File) => {
     if (!currentUser) return;
     try {
-      const parsed = parseCsv(await file.text()); const headers = parsed.shift() || [];
-      const requiredHeaders = ['studentUserId','contractType','propertyName','address','studentRole','contractDate'];
+      const parsed = parseCsv((await file.text()).replace(/^\uFEFF/, '')); const headers = parsed.shift() || [];
+      const requiredHeaders = ['학생이름','계약종류','자리번호','학생역할','계약일'];
       if (!requiredHeaders.every(header => headers.includes(header))) throw new Error('CSV 필수 열이 없습니다. 먼저 양식을 내려받아 작성해 주세요.');
+      const contractTypes: Record<string, RealEstateContractInput['contractType']> = { '매매':'sale', '전세':'jeonse', '월세':'monthly_rent' };
+      const studentRoles: Record<string, RealEstateContractInput['studentRole']> = { '소유자':'owner', '임차인':'tenant', '매수인':'buyer', '매도인':'seller' };
+      const statuses: Record<string, RealEstateContractInput['status']> = { '계약중':'active', '종료':'ended', '취소':'cancelled' };
       const inputs = parsed.map((values, rowIndex): RealEstateContractInput => {
         const data = Object.fromEntries(headers.map((header, index) => [header, values[index] || '']));
-        if (!students.some(student => student.userId === data.studentUserId)) throw new Error(`${rowIndex + 2}행의 학생을 찾을 수 없습니다.`);
-        if (!['sale','jeonse','monthly_rent'].includes(data.contractType)) throw new Error(`${rowIndex + 2}행의 계약 종류가 올바르지 않습니다.`);
-        if (!['owner','tenant','buyer','seller'].includes(data.studentRole || 'owner')) throw new Error(`${rowIndex + 2}행의 학생 역할이 올바르지 않습니다.`);
-        if (!data.propertyName.trim() || !data.address.trim() || !data.contractDate) throw new Error(`${rowIndex + 2}행의 필수 내용을 확인해 주세요.`);
-        const amounts = [Number(data.transactionAmount||0), Number(data.deposit||0), Number(data.monthlyRent||0)];
+        const studentName = data['학생이름'].trim();
+        const matchingStudents = students.filter(student => student.name.trim() === studentName);
+        if (matchingStudents.length === 0) throw new Error(`${rowIndex + 2}행의 '${studentName}' 학생을 찾을 수 없습니다.`);
+        if (matchingStudents.length > 1) throw new Error(`${rowIndex + 2}행의 '${studentName}' 학생은 동명이인이 있어 이름만으로 구분할 수 없습니다.`);
+        const contractType = contractTypes[data['계약종류'].trim()];
+        const studentRole = studentRoles[data['학생역할'].trim()];
+        const statusText = (data['계약상태'] || '').trim() || '계약중';
+        const status = statuses[statusText];
+        const seatNumber = data['자리번호'].trim();
+        if (!contractType) throw new Error(`${rowIndex + 2}행의 계약 종류는 매매·전세·월세 중 하나로 적어 주세요.`);
+        if (!studentRole) throw new Error(`${rowIndex + 2}행의 학생 역할은 임차인·매수인·매도인·소유자 중 하나로 적어 주세요.`);
+        if (!status) throw new Error(`${rowIndex + 2}행의 계약 상태는 계약중·종료·취소 중 하나로 적어 주세요.`);
+        if (!seatNumber || !data['계약일']) throw new Error(`${rowIndex + 2}행의 자리번호와 계약일을 확인해 주세요.`);
+        const amounts = [Number(data['거래금액']||0), Number(data['보증금']||0), Number(data['월세']||0)];
         if (amounts.some(amount => !Number.isFinite(amount) || amount < 0)) throw new Error(`${rowIndex + 2}행의 금액을 확인해 주세요.`);
-        return { studentUserId:data.studentUserId, contractType:data.contractType as any, propertyName:data.propertyName, address:data.address, studentRole:(data.studentRole || 'owner') as any, transactionAmount:amounts[0], deposit:amounts[1], monthlyRent:amounts[2], contractDate:data.contractDate, startDate:data.startDate||undefined, endDate:data.endDate||undefined, specialTerms:data.specialTerms||'', status:(data.status||'active') as any };
+        return {
+          studentUserId:matchingStudents[0].userId, contractType, propertyName:`자리 ${seatNumber}`, address:seatNumber,
+          studentRole, transactionAmount:amounts[0], deposit:amounts[1], monthlyRent:amounts[2],
+          contractDate:data['계약일'], startDate:data['시작일']||undefined, endDate:data['종료일']||undefined,
+          specialTerms:data['특약사항']||'', status
+        };
       });
       for (const input of inputs) await api.saveRealEstateContract(currentUser.userId, input);
       setNotice(`${inputs.length}건의 계약을 등록했습니다.`); await refresh();
