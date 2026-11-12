@@ -9,8 +9,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { FeatureGuide, OverviewCards } from '../components/FeatureGuide';
 import { ChartModal, DonutCard, SegmentedBar, VerticalBars } from '../components/VisualAnalytics';
 import { StockTransactionsModal } from './TeacherDashboard';
+import { FinanceTabArtwork, LoanManagement, RealEstateManagement } from '../components/FinanceManagement';
 
-type View = 'deposit_withdraw' | 'stock_exchange' | 'savings_management';
+type View = 'deposit_withdraw' | 'stock_exchange' | 'savings_management' | 'loans' | 'real_estate';
+const LoanTabIcon = () => <FinanceTabArtwork kind="loan" />;
+const EstateTabIcon = () => <FinanceTabArtwork kind="estate" />;
 
 const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => {
     const { currentUser, logout } = useContext(AuthContext);
@@ -28,6 +31,10 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
                 return <StockExchangeView />;
             case 'savings_management':
                 return <SavingsManagementView />;
+            case 'loans':
+                return <LoanManagement />;
+            case 'real_estate':
+                return <RealEstateManagement />;
             default:
                 return <DepositWithdrawView />;
         }
@@ -45,6 +52,8 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
                     <DesktopNavButton label="입/출금" Icon={TeacherExchangeArtwork} active={view === 'deposit_withdraw'} onClick={() => setView('deposit_withdraw')} />
                     <DesktopNavButton label="주식거래소" Icon={TeacherStocksArtwork} active={view === 'stock_exchange'} onClick={() => setView('stock_exchange')} />
                     <DesktopNavButton label="예금 관리" Icon={TeacherSavingsArtwork} active={view === 'savings_management'} onClick={() => setView('savings_management')} />
+                    <DesktopNavButton label="대출 관리" Icon={LoanTabIcon} active={view === 'loans'} onClick={() => setView('loans')} />
+                    <DesktopNavButton label="부동산 관리" Icon={EstateTabIcon} active={view === 'real_estate'} onClick={() => setView('real_estate')} />
                 </nav>
                 <div className="mt-auto">
                     <button onClick={handleLogout} className="w-full flex items-center p-3 text-sm text-gray-600 rounded-lg hover:bg-gray-200/50 transition-colors">
@@ -72,10 +81,12 @@ const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) =
                 </main>
 
                 {/* Bottom Nav for Mobile */}
-                <nav className="md:hidden grid grid-cols-3 bg-white p-1 border-t sticky bottom-0 z-10">
+                <nav className="md:hidden grid grid-cols-5 bg-white p-1 border-t sticky bottom-0 z-10">
                     <NavButton label="입/출금" Icon={TeacherExchangeArtwork} active={view === 'deposit_withdraw'} onClick={() => setView('deposit_withdraw')} />
                     <NavButton label="주식거래소" Icon={TeacherStocksArtwork} active={view === 'stock_exchange'} onClick={() => setView('stock_exchange')} />
                     <NavButton label="예금 관리" Icon={TeacherSavingsArtwork} active={view === 'savings_management'} onClick={() => setView('savings_management')} />
+                    <NavButton label="대출" Icon={LoanTabIcon} active={view === 'loans'} onClick={() => setView('loans')} />
+                    <NavButton label="부동산" Icon={EstateTabIcon} active={view === 'real_estate'} onClick={() => setView('real_estate')} />
                 </nav>
             </div>
         </div>

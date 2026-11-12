@@ -204,6 +204,18 @@ export const createDefaultMockState = () => {
         { id: 'mart_item_3', teacher_id: teacherId, name: '간식 교환권', price: 500, category: '교환권', is_active: true, sort_order: 3, created_at: yesterday.toISOString(), updated_at: yesterday.toISOString() },
     ];
 
+    const loanContracts: any[] = [];
+    const realEstateContracts: any[] = [
+        {
+            id: 'estate_demo_1', teacherId, studentUserId: 'guest_student_1', studentName: '김민준',
+            contractType: 'monthly_rent', propertyName: '교실 마을 1호점', address: '우리 반 경제마을 A구역',
+            studentRole: 'tenant', transactionAmount: 0, deposit: 1000, monthlyRent: 100,
+            contractDate: new Date().toISOString().slice(0, 10), startDate: new Date().toISOString().slice(0, 10),
+            endDate: '', specialTerms: '교실 경제활동 체험용 계약', status: 'active',
+            createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+        }
+    ];
+
     return {
         teacherUser,
         students,
@@ -221,7 +233,9 @@ export const createDefaultMockState = () => {
         fundInvestments,
         donations,
         donationLogs
-        ,martItems
+        ,martItems,
+        loanContracts,
+        realEstateContracts
     };
 };
 

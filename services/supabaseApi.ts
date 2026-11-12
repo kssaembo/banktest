@@ -1,7 +1,7 @@
 
 import { supabase } from './supabaseClient';
 // Added missing FundInvestment import
-import { Role, User, Account, StockProduct, StockProductWithDetails, StudentStock, SavingsProduct, StudentSaving, Job, TaxItemWithRecipients, StockHistory, Fund, FundStatus, FundInvestment, Donation } from '../types';
+import { Role, User, Account, StockProduct, StockProductWithDetails, StudentStock, SavingsProduct, StudentSaving, Job, TaxItemWithRecipients, StockHistory, Fund, FundStatus, FundInvestment, Donation, LoanContract, LoanContractInput, RealEstateContract, RealEstateContractInput, HighValueTransferAlert } from '../types';
 // Guest imports removed for direct Supabase usage
 
 // Helper function to handle Supabase errors
@@ -877,13 +877,16 @@ const getTaxes = async (teacherId: string): Promise<TaxItemWithRecipients[]> => 
         .select('*')
         .eq('teacher_id', teacherId);
     if (rcptError) throw new Error(rcptError.message);
-    return taxes.map((tax: any) => ({
+    return (taxes || []).filter((tax: any) => (tax.item_type || 'tax') === 'tax' || (tax.is_payable !== false && !tax.is_cancelled)).map((tax: any) => ({
         id: tax.id,
         teacher_id: tax.teacher_id,
         name: tax.name,
         amount: tax.amount,
         dueDate: tax.due_date,
         createdAt: tax.created_at,
+        itemType: tax.item_type || 'tax',
+        loanContractId: tax.loan_contract_id || undefined,
+        installmentNumber: tax.installment_number || undefined,
         recipients: recipients.filter((r: any) => r.tax_id === tax.id).map((r: any) => ({
             id: r.id,
             taxId: r.tax_id,
@@ -912,15 +915,23 @@ const deleteTax = async (taxId: string): Promise<string> => {
     return '세금 항목이 삭제되었습니다.';
 };
 
-const getMyUnpaidTaxes = async (userId: string): Promise<{ recipientId: string, taxId: string, name: string, amount: number, dueDate: string }[]> => {
+const getMyUnpaidTaxes = async (userId: string): Promise<{ recipientId: string, taxId: string, name: string, amount: number, dueDate: string, itemType?: string, loanContractId?: string, installmentNumber?: number }[]> => {
     const { data, error } = await supabase.from('tax_recipients').select('*, tax_items(*)').eq('student_user_id', userId).eq('is_paid', false);
     handleSupabaseError(error, 'getMyUnpaidTaxes');
-    return (data || []).map((r: any) => ({
+    const today = new Date().toISOString().slice(0, 10);
+    return (data || []).filter((r: any) => {
+        const type = r.tax_items?.item_type || 'tax';
+        if (r.tax_items?.is_cancelled || r.tax_items?.is_payable === false) return false;
+        return !type.startsWith('loan_') || String(r.tax_items?.due_date || '').slice(0, 10) <= today;
+    }).map((r: any) => ({
         recipientId: r.id,
         taxId: r.tax_id || r.tax_items?.id, // r.tax_id가 없을 경우 조인된 테이블의 id를 참조하도록 보완
         name: r.tax_items?.name,
         amount: r.tax_items?.amount,
-        dueDate: r.tax_items?.due_date
+        dueDate: r.tax_items?.due_date,
+        itemType: r.tax_items?.item_type || 'tax',
+        loanContractId: r.tax_items?.loan_contract_id || undefined,
+        installmentNumber: r.tax_items?.installment_number || undefined
     }));
 };
 
@@ -928,6 +939,100 @@ const payTax = async (userId: string, taxId: string): Promise<string> => {
     const { data, error } = await supabase.rpc('pay_tax', { p_user_id: userId.toString(), p_tax_id: taxId.toString() });
     handleSupabaseError(error, 'payTax');
     return data;
+};
+
+const mapLoan = (row: any): LoanContract => ({
+    id: row.id, teacherId: row.teacher_id, studentUserId: row.student_user_id, studentName: row.student_name,
+    principal: Number(row.principal || 0), interestRate: Number(row.interest_rate || 0),
+    totalInterest: Number(row.total_interest || 0), totalRepayment: Number(row.total_repayment || 0),
+    installmentCount: Number(row.installment_count || 0), installmentIntervalDays: Number(row.installment_interval_days || 7),
+    startDate: row.start_date, specialTerms: row.special_terms || '', status: row.status,
+    disbursedAt: row.disbursed_at || undefined, paidAmount: Number(row.paid_amount || 0),
+    remainingAmount: Number(row.remaining_amount ?? row.total_repayment ?? 0),
+    paidInstallments: Number(row.paid_installments || 0), createdAt: row.created_at, updatedAt: row.updated_at
+});
+
+const getLoanContracts = async (teacherId: string): Promise<LoanContract[]> => {
+    const { data, error } = await supabase.rpc('classbank_get_loan_contracts', { p_teacher_id: teacherId });
+    handleSupabaseError(error, 'getLoanContracts');
+    return (data || []).map(mapLoan);
+};
+
+const createLoanContract = async (teacherId: string, input: LoanContractInput): Promise<LoanContract> => {
+    const { data, error } = await supabase.rpc('classbank_create_loan_contract', {
+        p_teacher_id: teacherId, p_student_user_id: input.studentUserId, p_principal: input.principal,
+        p_interest_rate: input.interestRate, p_installment_count: input.installmentCount,
+        p_installment_interval_days: input.installmentIntervalDays, p_start_date: input.startDate,
+        p_special_terms: input.specialTerms
+    });
+    handleSupabaseError(error, 'createLoanContract');
+    return mapLoan(data);
+};
+
+const updateLoanContract = async (teacherId: string, loanId: string, input: LoanContractInput): Promise<LoanContract> => {
+    const { data, error } = await supabase.rpc('classbank_update_loan_contract', {
+        p_teacher_id: teacherId, p_loan_id: loanId, p_principal: input.principal,
+        p_interest_rate: input.interestRate, p_installment_count: input.installmentCount,
+        p_installment_interval_days: input.installmentIntervalDays, p_start_date: input.startDate,
+        p_special_terms: input.specialTerms
+    });
+    handleSupabaseError(error, 'updateLoanContract');
+    return mapLoan(data);
+};
+
+const disburseLoan = async (teacherId: string, loanId: string): Promise<string> => {
+    const { data, error } = await supabase.rpc('classbank_disburse_loan', { p_teacher_id: teacherId, p_loan_id: loanId });
+    handleSupabaseError(error, 'disburseLoan');
+    return data || '대출금 지급이 완료되었습니다.';
+};
+
+const requestEarlyLoanRepayment = async (teacherId: string, loanId: string): Promise<string> => {
+    const { data, error } = await supabase.rpc('classbank_request_early_repayment', { p_teacher_id: teacherId, p_loan_id: loanId });
+    handleSupabaseError(error, 'requestEarlyLoanRepayment');
+    return data || '조기상환 고지서를 만들었습니다.';
+};
+
+const mapRealEstate = (row: any): RealEstateContract => ({
+    id: row.id, teacherId: row.teacher_id, studentUserId: row.student_user_id, studentName: row.student_name,
+    contractType: row.contract_type, propertyName: row.property_name, address: row.address,
+    studentRole: row.student_role, transactionAmount: Number(row.transaction_amount || 0),
+    deposit: Number(row.deposit || 0), monthlyRent: Number(row.monthly_rent || 0),
+    contractDate: row.contract_date, startDate: row.start_date || undefined, endDate: row.end_date || undefined,
+    specialTerms: row.special_terms || '', status: row.status, createdAt: row.created_at, updatedAt: row.updated_at
+});
+
+const getRealEstateContracts = async (teacherId: string): Promise<RealEstateContract[]> => {
+    const { data, error } = await supabase.rpc('classbank_get_real_estate_contracts', { p_teacher_id: teacherId });
+    handleSupabaseError(error, 'getRealEstateContracts');
+    return (data || []).map(mapRealEstate);
+};
+
+const getStudentRealEstateContracts = async (studentUserId: string): Promise<RealEstateContract[]> => {
+    const { data, error } = await supabase.rpc('classbank_get_student_real_estate', { p_student_user_id: studentUserId });
+    handleSupabaseError(error, 'getStudentRealEstateContracts');
+    return (data || []).map(mapRealEstate);
+};
+
+const saveRealEstateContract = async (teacherId: string, input: RealEstateContractInput, contractId?: string): Promise<RealEstateContract> => {
+    const { data, error } = await supabase.rpc('classbank_save_real_estate_contract', {
+        p_teacher_id: teacherId, p_contract_id: contractId || null, p_student_user_id: input.studentUserId,
+        p_contract_type: input.contractType, p_property_name: input.propertyName, p_address: input.address,
+        p_student_role: input.studentRole, p_transaction_amount: input.transactionAmount, p_deposit: input.deposit,
+        p_monthly_rent: input.monthlyRent, p_contract_date: input.contractDate, p_start_date: input.startDate || null,
+        p_end_date: input.endDate || null, p_special_terms: input.specialTerms, p_status: input.status
+    });
+    handleSupabaseError(error, 'saveRealEstateContract');
+    return mapRealEstate(data);
+};
+
+const getHighValueTransferAlerts = async (teacherId: string): Promise<HighValueTransferAlert[]> => {
+    const { data, error } = await supabase.rpc('classbank_get_high_value_transfer_alerts', { p_teacher_id: teacherId, p_min_amount: 30 });
+    handleSupabaseError(error, 'getHighValueTransferAlerts');
+    return (data || []).map((row: any) => ({
+        transactionId: row.transaction_id, senderUserId: row.sender_user_id, senderName: row.sender_name,
+        receiverUserId: row.receiver_user_id, receiverName: row.receiver_name, amount: Number(row.amount || 0),
+        memo: row.memo || '', createdAt: row.created_at
+    }));
 };
 
 const getFunds = async (teacherId: string): Promise<Fund[]> => {
@@ -1262,7 +1367,9 @@ const baseApi = {
     getFundInvestors, issueCurrency, deleteTeacherAccount, getDailyTreasuryTotals,
     getDonations, createDonation, closeDonation, donate, updateDonation, getDonationLogs, getStockTransactions, deleteDonation,
     getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment, updateEconomyStoryComment, toggleEconomyStoryReaction, deleteEconomyStoryComments, rewardEconomyStoryComments,
-    getMartItems, addMartItem, updateMartItem, deleteMartItem
+    getMartItems, addMartItem, updateMartItem, deleteMartItem,
+    getLoanContracts, createLoanContract, updateLoanContract, disburseLoan, requestEarlyLoanRepayment,
+    getRealEstateContracts, getStudentRealEstateContracts, saveRealEstateContract, getHighValueTransferAlerts
 };
 
 export const api = baseApi;

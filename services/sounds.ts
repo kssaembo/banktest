@@ -35,5 +35,5 @@ export async function playButtonSound(group:ButtonSoundGroup='default'){
 export function operationCue(method:string):SoundCue|undefined{
  if(method==='payTax')return 'tax-paid';
  if(['joinSavings','buyStock','joinFund','donate'].includes(method))return 'savings-open';
- if(['transfer','martTransfer','bankerDeposit','bankerWithdraw','issueCurrency','sellStock','processSavingsMaturity','cancelSavings','payAllSalaries','payJobSalary'].includes(method))return 'success-coin';
+ if(['transfer','martTransfer','bankerDeposit','bankerWithdraw','issueCurrency','sellStock','processSavingsMaturity','cancelSavings','payAllSalaries','payJobSalary','disburseLoan'].includes(method))return 'success-coin';
 }

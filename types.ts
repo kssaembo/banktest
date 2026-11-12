@@ -141,6 +141,9 @@ export interface TaxItem {
     dueDate: string;
     createdAt: string;
     teacher_id: string; // Updated
+    itemType?: 'tax' | 'loan_installment' | 'loan_early_repayment';
+    loanContractId?: string;
+    installmentNumber?: number;
 }
 
 export interface TaxRecipient {
@@ -153,6 +156,76 @@ export interface TaxRecipient {
 
 export interface TaxItemWithRecipients extends TaxItem {
     recipients: TaxRecipient[];
+}
+
+export type LoanStatus = 'draft' | 'active' | 'early_repayment_pending' | 'repaid' | 'cancelled';
+
+export interface LoanContract {
+  id: string;
+  teacherId: string;
+  studentUserId: string;
+  studentName?: string;
+  principal: number;
+  interestRate: number;
+  totalInterest: number;
+  totalRepayment: number;
+  installmentCount: number;
+  installmentIntervalDays: number;
+  startDate: string;
+  specialTerms: string;
+  status: LoanStatus;
+  disbursedAt?: string;
+  paidAmount: number;
+  remainingAmount: number;
+  paidInstallments: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoanContractInput {
+  studentUserId: string;
+  principal: number;
+  interestRate: number;
+  installmentCount: number;
+  installmentIntervalDays: number;
+  startDate: string;
+  specialTerms: string;
+}
+
+export type RealEstateContractType = 'sale' | 'jeonse' | 'monthly_rent';
+
+export interface RealEstateContract {
+  id: string;
+  teacherId: string;
+  studentUserId: string;
+  studentName?: string;
+  contractType: RealEstateContractType;
+  propertyName: string;
+  address: string;
+  studentRole: 'owner' | 'tenant' | 'buyer' | 'seller';
+  transactionAmount: number;
+  deposit: number;
+  monthlyRent: number;
+  contractDate: string;
+  startDate?: string;
+  endDate?: string;
+  specialTerms: string;
+  status: 'active' | 'ended' | 'cancelled';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RealEstateContractInput = Omit<RealEstateContract, 'id' | 'teacherId' | 'studentName' | 'createdAt' | 'updatedAt'>;
+
+export interface HighValueTransferAlert {
+  transactionId: string;
+  senderUserId: string;
+  senderName: string;
+  receiverUserId: string;
+  receiverName: string;
+  amount: number;
+  memo: string;
+  createdAt: string;
 }
 
 export enum FundStatus {

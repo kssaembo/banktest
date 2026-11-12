@@ -21,6 +21,8 @@ function read(): State {
       if (parsed.teacherUser?.userId === teacher && Array.isArray(parsed.accounts)) {
         // Migrate older demo snapshots that stored percentages as 10 instead of 0.10.
         parsed.savingsProducts?.forEach((product: any)=>{ if(Number(product.rate)>1) product.rate=Number(product.rate)/100; if(Number(product.cancellationRate)>1) product.cancellationRate=Number(product.cancellationRate)/100; });
+        parsed.loanContracts ||= [];
+        parsed.realEstateContracts ||= [];
         return parsed;
       }
     }
@@ -204,11 +206,26 @@ const local: LocalApi = {
   updateJobIncentive: (jid, incentive) => { if (!Number.isFinite(incentive)) throw new Error('올바른 금액을 입력하세요.'); required(state.jobs.find(j => j.id === jid)).incentive = incentive; },
   payJobSalary: paySalary,
   payAllSalaries: () => { state.jobs.filter(j => j.assigned_students.length && j.lastPaidDate?.slice(0, 10) !== now().slice(0, 10)).forEach(j => paySalary(j.id)); return '전체 급여 지급이 완료되었습니다.'; },
-  getTaxes: () => state.taxes.map(t => ({ ...t, createdAt: t.createdAt || now(), recipients: state.taxPayments.filter(p => p.taxId === t.id).map(p => ({ id: `${p.userId}_${p.taxId}`, taxId: p.taxId, studentUserId: p.userId, isPaid: p.paid, paidAt: p.paidDate })) })),
+  getTaxes: () => state.taxes.filter(t => !t.itemType || t.itemType === 'tax' || t.enabled !== false).map(t => ({ ...t, createdAt: t.createdAt || now(), recipients: state.taxPayments.filter(p => p.taxId === t.id).map(p => ({ id: `${p.userId}_${p.taxId}`, taxId: p.taxId, studentUserId: p.userId, isPaid: p.paid, paidAt: p.paidDate })) })),
   createTax: (name, amount, dueDate, ids) => { positive(amount); const tid = id(); state.taxes.push({ id: tid, name, amount, dueDate, teacher_id: teacher, createdAt: now() }); [...new Set(ids)].forEach(uid => { required(user(uid)); state.taxPayments.push({ userId: uid, taxId: tid, paid: false }); }); return '세금이 부과되었습니다.'; },
   deleteTax: tid => { state.taxes = state.taxes.filter(t => t.id !== tid); state.taxPayments = state.taxPayments.filter(t => t.taxId !== tid); return '삭제되었습니다.'; },
-  getMyUnpaidTaxes: uid => state.taxPayments.filter(p => p.userId === uid && !p.paid).map(p => { const tax = required(state.taxes.find(t => t.id === p.taxId)); return { recipientId: `${uid}_${tax.id}`, taxId: tax.id, name: tax.name, amount: tax.amount, dueDate: tax.dueDate }; }),
-  payTax: (uid, tid) => { const p = required(state.taxPayments.find(p => p.userId === uid && p.taxId === tid)); if (p.paid) throw new Error('이미 납부한 세금입니다.'); const t = required(state.taxes.find(t => t.id === tid)); move(account(uid), treasury(), t.amount, t.name, T.TAX); p.paid = true; p.paidDate = now(); return '납부되었습니다.'; },
+  getMyUnpaidTaxes: uid => state.taxPayments.filter(p => p.userId === uid && !p.paid).map(p => ({ p, tax: required(state.taxes.find(t => t.id === p.taxId)) })).filter(({tax}) => tax.enabled !== false && (tax.itemType !== 'loan_installment' && tax.itemType !== 'loan_early_repayment' || new Date(tax.dueDate).getTime() <= Date.now())).map(({p,tax}) => ({ recipientId: `${uid}_${tax.id}`, taxId: tax.id, name: tax.name, amount: tax.amount, dueDate: tax.dueDate, itemType: tax.itemType || 'tax', loanContractId: tax.loanContractId, installmentNumber: tax.installmentNumber })),
+  payTax: (uid, tid) => {
+    const p = required(state.taxPayments.find(p => p.userId === uid && p.taxId === tid));
+    if (p.paid) throw new Error('이미 납부한 고지서입니다.');
+    const t = required(state.taxes.find(t => t.id === tid));
+    if ((t.itemType === 'loan_installment' || t.itemType === 'loan_early_repayment') && new Date(t.dueDate).getTime() > Date.now()) throw new Error('납부 예정일 전에는 상환할 수 없습니다.');
+    move(account(uid), treasury(), t.amount, t.name, T.TAX); p.paid = true; p.paidDate = now();
+    if (t.loanContractId) {
+      const loan = required(state.loanContracts.find((row:any) => row.id === t.loanContractId));
+      const related = state.taxes.filter(row => row.loanContractId === loan.id && row.enabled !== false);
+      if (t.itemType === 'loan_early_repayment' || related.every(row => state.taxPayments.find(pay => pay.taxId === row.id)?.paid)) {
+        loan.status = 'repaid'; loan.updatedAt = now();
+        state.taxes.filter(row => row.loanContractId === loan.id && row.id !== t.id).forEach(row => { row.enabled = false; });
+      }
+    }
+    return '납부되었습니다.';
+  },
   getFunds: fundRows,
   createFund: f => {
     positive(f.unitPrice); positive(f.targetAmount);
@@ -293,6 +310,74 @@ const local: LocalApi = {
       }
     });
     return { rewarded, total: money(rewarded * amount) };
+  },
+  getLoanContracts: () => state.loanContracts.map((loan:any) => {
+    const bills = state.taxes.filter(t => t.loanContractId === loan.id && t.enabled !== false);
+    const paidBills = bills.filter(t => state.taxPayments.find(p => p.taxId === t.id)?.paid);
+    const paidAmount = paidBills.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    return { ...loan, studentName: user(loan.studentUserId)?.name || '', paidAmount, remainingAmount: money(Math.max(0, loan.totalRepayment - paidAmount)), paidInstallments: paidBills.length };
+  }),
+  createLoanContract: (_teacherId, input) => {
+    positive(input.principal); positive(input.installmentCount); positive(input.installmentIntervalDays);
+    if (input.interestRate < 0) throw new Error('이율은 0 이상이어야 합니다.');
+    required(user(input.studentUserId));
+    const totalInterest = money(input.principal * input.interestRate / 100);
+    const totalRepayment = money(input.principal + totalInterest);
+    const loan:any = { id:id(), teacherId:teacher, ...input, totalInterest, totalRepayment, status:'draft', paidAmount:0, remainingAmount:totalRepayment, paidInstallments:0, createdAt:now(), updatedAt:now() };
+    state.loanContracts.push(loan);
+    for (let index=1; index<=input.installmentCount; index+=1) {
+      const billId=id(); const paidBefore=money(totalRepayment/input.installmentCount*(index-1));
+      const amount=index===input.installmentCount?money(totalRepayment-paidBefore):money(totalRepayment/input.installmentCount);
+      const due=new Date(`${input.startDate}T00:00:00`); due.setDate(due.getDate()+input.installmentIntervalDays*(index-1));
+      state.taxes.push({id:billId,name:`대출 ${index}회차 상환`,amount,dueDate:due.toISOString(),teacher_id:teacher,itemType:'loan_installment',loanContractId:loan.id,installmentNumber:index,enabled:false,createdAt:now()});
+      state.taxPayments.push({userId:input.studentUserId,taxId:billId,paid:false});
+    }
+    return loan;
+  },
+  updateLoanContract: (_teacherId, loanId, input) => {
+    const loan:any=required(state.loanContracts.find((row:any)=>row.id===loanId));
+    if (!['draft','active'].includes(loan.status)) throw new Error('현재 상태에서는 계약을 수정할 수 없습니다.');
+    const oldBills=state.taxes.filter(t=>t.loanContractId===loanId&&t.itemType==='loan_installment');
+    const paidBills=oldBills.filter(t=>state.taxPayments.find(p=>p.taxId===t.id)?.paid);
+    const paidTotal=money(paidBills.reduce((sum,t)=>sum+t.amount,0)),paidCount=paidBills.length;
+    if(input.installmentCount<paidCount)throw new Error('상환 횟수는 이미 납부한 회차보다 적을 수 없습니다.');
+    const principal=loan.status==='draft'?input.principal:loan.principal;
+    const totalInterest=money(principal*input.interestRate/100),totalRepayment=money(principal+totalInterest);
+    if(totalRepayment<paidTotal)throw new Error('총상환액이 이미 납부한 금액보다 작습니다.');
+    const unpaidIds=new Set(oldBills.filter(t=>!paidBills.some(p=>p.id===t.id)).map(t=>t.id));
+    state.taxes=state.taxes.filter(t=>!unpaidIds.has(t.id));state.taxPayments=state.taxPayments.filter(p=>!unpaidIds.has(p.taxId));
+    Object.assign(loan,input,{principal,totalInterest,totalRepayment,remainingAmount:money(totalRepayment-paidTotal),paidAmount:paidTotal,paidInstallments:paidCount,updatedAt:now()});
+    const remainingCount=input.installmentCount-paidCount;let assigned=0;
+    for(let index=paidCount+1;index<=input.installmentCount;index+=1){const billId=id(),amount=index===input.installmentCount?money(totalRepayment-paidTotal-assigned):money((totalRepayment-paidTotal)/remainingCount),due=new Date(`${input.startDate}T00:00:00`);due.setDate(due.getDate()+input.installmentIntervalDays*(index-1));state.taxes.push({id:billId,name:`대출 ${index}회차 상환`,amount,dueDate:due.toISOString(),teacher_id:teacher,itemType:'loan_installment',loanContractId:loan.id,installmentNumber:index,enabled:loan.status==='active',createdAt:now()});state.taxPayments.push({userId:input.studentUserId,taxId:billId,paid:false});assigned=money(assigned+amount);}
+    return loan;
+  },
+  disburseLoan: (_teacherId, loanId) => {
+    const loan:any=required(state.loanContracts.find((row:any)=>row.id===loanId));
+    if(loan.status!=='draft'||loan.disbursedAt)throw new Error('이미 지급했거나 지급할 수 없는 계약입니다.');
+    move(treasury(),account(loan.studentUserId),loan.principal,'대출금 지급',T.TRANSFER,T.TRANSFER);
+    loan.status='active';loan.disbursedAt=now();loan.updatedAt=now();state.taxes.filter(t=>t.loanContractId===loanId).forEach(t=>{t.enabled=true;});
+    return '대출금 지급이 완료되었습니다.';
+  },
+  requestEarlyLoanRepayment: (_teacherId, loanId) => {
+    const loan:any=required(state.loanContracts.find((row:any)=>row.id===loanId));
+    if(loan.status!=='active')throw new Error('상환 중인 계약만 조기상환할 수 있습니다.');
+    const bills=state.taxes.filter(t=>t.loanContractId===loanId&&t.enabled!==false);
+    const paid=bills.filter(t=>state.taxPayments.find(p=>p.taxId===t.id)?.paid).reduce((sum,t)=>sum+t.amount,0);
+    const amount=money(loan.totalRepayment-paid);if(amount<=0)throw new Error('남은 상환금이 없습니다.');
+    bills.filter(t=>!state.taxPayments.find(p=>p.taxId===t.id)?.paid).forEach(t=>{t.enabled=false;});
+    const billId=id();state.taxes.push({id:billId,name:'대출 조기상환',amount,dueDate:now(),teacher_id:teacher,itemType:'loan_early_repayment',loanContractId:loanId,enabled:true,createdAt:now()});state.taxPayments.push({userId:loan.studentUserId,taxId:billId,paid:false});
+    loan.status='early_repayment_pending';loan.updatedAt=now();return '조기상환 고지서를 만들었습니다.';
+  },
+  getRealEstateContracts: () => state.realEstateContracts.map((row:any)=>({...row,studentName:user(row.studentUserId)?.name||''})),
+  getStudentRealEstateContracts: uid => state.realEstateContracts.filter((row:any)=>row.studentUserId===uid),
+  saveRealEstateContract: (_teacherId,input,contractId) => {
+    required(user(input.studentUserId)); const stamp=now();
+    if(!input.propertyName.trim()||!input.address.trim())throw new Error('부동산명과 주소를 입력하세요.');
+    if(contractId){const row:any=required(state.realEstateContracts.find((item:any)=>item.id===contractId));Object.assign(row,input,{updatedAt:stamp});return row;}
+    const row:any={...input,id:id(),teacherId:teacher,studentName:user(input.studentUserId)?.name||'',createdAt:stamp,updatedAt:stamp};state.realEstateContracts.push(row);return row;
+  },
+  getHighValueTransferAlerts: () => {
+    const seen=new Set<string>(); return state.transactions.filter(t=>t.type===T.TRANSFER&&Number(t.amount)>=30&&t.senderId&&t.receiverId&&user(t.senderId)?.role===Role.STUDENT&&user(t.receiverId)?.role===Role.STUDENT).filter(t=>{const key=`${t.senderId}:${t.receiverId}:${t.amount}:${t.date}`;if(seen.has(key))return false;seen.add(key);return true;}).map(t=>({transactionId:t.transactionId,senderUserId:t.senderId,senderName:user(t.senderId)?.name||'',receiverUserId:t.receiverId,receiverName:user(t.receiverId)?.name||'',amount:Number(t.amount),memo:t.description||'',createdAt:t.date}));
   },
   getMartItems: tid => state.martItems.filter(item => item.teacher_id === tid).sort((a, b) => a.sort_order - b.sort_order),
   addMartItem: (tid, input) => {

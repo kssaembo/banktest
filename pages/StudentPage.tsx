@@ -22,11 +22,13 @@ import { EconomyNewsModal } from '../components/EconomyNewsModal';
 import { EconomyStoryModal } from '../components/EconomyStoryModal';
 import { FeatureGuide } from '../components/FeatureGuide';
 import { ChartModal, DonutCard, TrendChart } from '../components/VisualAnalytics';
+import { FinanceTabArtwork, StudentRealEstateView } from '../components/FinanceManagement';
 
 const studentIncomeTypes = new Set(['Deposit','Salary','StockSell','SavingsCancel','SavingsMaturity','FundSettle','FundPayout']);
 const isStudentIncome = (transaction: Pick<Transaction,'type'|'amount'>) => studentIncomeTypes.has(String(transaction.type)) || (String(transaction.type)==='Transfer' && Number(transaction.amount)>0);
 
-type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds';
+type View = 'home' | 'transfer' | 'stocks' | 'savings' | 'funds' | 'real_estate';
+const StudentEstateArtwork = () => <FinanceTabArtwork kind="estate" />;
 type LearningSection = 'news' | 'reading' | 'typing' | 'donation' | 'story';
 type NotificationType = { type: 'success' | 'error', text: string };
 
@@ -120,7 +122,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
     const [myStocks, setMyStocks] = useState<StudentStock[]>([]);
     const [mySavings, setMySavings] = useState<StudentSaving[]>([]);
     const [unpaidTaxes, setUnpaidTaxes] = useState<any[]>([]);
-    const [taxToPay, setTaxToPay] = useState<{taxId: string, amount: number, name: string} | null>(null);
+    const [taxToPay, setTaxToPay] = useState<{taxId: string, amount: number, name: string, itemType?: string} | null>(null);
     const [visibleCount, setVisibleCount] = useState(5);
     const [assetModal,setAssetModal]=useState(false);
 
@@ -198,7 +200,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
 <div className="student-asset-card grid w-full gap-5 rounded-[32px] border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-5 md:p-7 text-left shadow-sm lg:grid-cols-[minmax(0,1fr)_280px] items-start"><div className="min-w-0"><p className="mb-2 text-sm font-black text-gray-800">내 총 자산</p><h2 className="student-total text-4xl font-black tracking-tight text-gray-900">{totalAssets.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}<span className="ml-1 text-2xl">{unit}</span></h2>            {unpaidTaxes.length > 0 && (
                 <div className="mt-4 bg-red-50 p-4 rounded-3xl border border-red-100">
                     <h3 className="font-black text-red-700 mb-4 flex items-center tracking-tight text-lg">
-                        <NewTaxIcon className="w-6 h-6 mr-2"/> 미납 세금 고지서
+                        <NewTaxIcon className="w-6 h-6 mr-2"/> 미납 고지서
                     </h3>
                     <div className="space-y-3">
                         {unpaidTaxes.map(tax => (
@@ -210,7 +212,7 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
                                 <div className="flex items-center gap-4">
                                     <span className="font-black text-red-600">{tax.amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</span>
                                     <button
-                                        onClick={() => setTaxToPay({ taxId: tax.taxId, amount: tax.amount, name: tax.name })}
+                                        onClick={() => setTaxToPay({ taxId: tax.taxId, amount: tax.amount, name: tax.name, itemType: tax.itemType })}
                                         className="px-4 py-2 bg-red-600 text-white text-xs rounded-full font-bold hover:bg-red-700 active:scale-95 transition-all shadow-md shadow-red-100"
                                     >
                                         납부
@@ -262,8 +264,8 @@ const HomeView: React.FC<{ onLearn: (section: LearningSection) => void, account:
 
             <ConfirmModal
                 isOpen={!!taxToPay}
-                title="세금 납부"
-                message={`'${taxToPay?.name}' 세금 ${taxToPay?.amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${unit}을 납부하시겠습니까?`}
+                title={taxToPay?.itemType?.startsWith('loan_') ? '대출금 상환' : '세금 납부'}
+                message={`'${taxToPay?.name}' ${taxToPay?.amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${unit}을 납부하시겠습니까?`}
                 onConfirm={handleConfirmPayment}
                 onCancel={() => setTaxToPay(null)}
                 confirmText="납부하기"
@@ -1556,6 +1558,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
     const [activeStudent, setActiveStudent] = useState<User | null>(null);
     const [students, setStudents] = useState<User[]>([]);
+    const [hasRealEstate, setHasRealEstate] = useState(false);
 
     const goToTeacherMenu = useCallback(() => {
         window.history.replaceState({ ...window.history.state, classBankTeacherFlow: 'teacher-menu' }, document.title);
@@ -1611,7 +1614,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     }, [currentUser?.role, onBackToMenu, students]);
 
     useEffect(() => {
-        if (initialView && ['home', 'transfer', 'stocks', 'savings', 'funds'].includes(initialView)) {
+        if (initialView && ['home', 'transfer', 'stocks', 'savings', 'funds', 'real_estate'].includes(initialView)) {
             setView(initialView as View);
         }
     }, [initialView]);
@@ -1646,6 +1649,12 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
     }, [currentUser, activeStudent]);
 
     useEffect(() => { refreshAccount(); }, [refreshAccount]);
+
+    useEffect(() => {
+        const target = currentUser?.role === Role.TEACHER ? activeStudent : currentUser;
+        if (!target) { setHasRealEstate(false); return; }
+        api.getStudentRealEstateContracts(target.userId).then(rows => setHasRealEstate(rows.length > 0)).catch(() => setHasRealEstate(false));
+    }, [currentUser, activeStudent]);
 
     useEffect(() => {
         const targetUser = currentUser?.role === Role.TEACHER ? activeStudent : currentUser;
@@ -1694,6 +1703,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
             case 'stocks': return <StocksView currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'savings': return <SavingsView currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
             case 'funds': return <FundView currentUser={{...effectiveUser, currencyUnit: currentUnit}} students={students} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
+            case 'real_estate': return <StudentRealEstateView user={{...effectiveUser, currencyUnit: currentUnit}} />;
             default: return <HomeView onLearn={section => section === 'news' ? setShowNewsModal(true) : section === 'reading' ? setShowReadingModal(true) : section === 'typing' ? setShowTypingModal(true) : section === 'story' ? setShowStoryModal(true) : setShowDonationModal(true)} account={account} currentUser={{...effectiveUser, currencyUnit: currentUnit}} refreshAccount={refreshAccount} showNotification={(type, text) => setNotification({type, text})} />;
         }
     };
@@ -1710,6 +1720,7 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
                         <DesktopNavBtn icon={StudentStockArtwork} label="주식" active={view === 'stocks'} onClick={() => setView('stocks')} />
                         <DesktopNavBtn icon={StudentFundArtwork} label="펀드" active={view === 'funds'} onClick={() => setView('funds')} />
                         <DesktopNavBtn icon={StudentSavingsArtwork} label="예금" active={view === 'savings'} onClick={() => setView('savings')} />
+                        <div className={hasRealEstate ? '' : 'pointer-events-none opacity-40'} title={hasRealEstate ? '내 부동산 계약 보기' : '등록된 부동산 계약이 없습니다.'}><DesktopNavBtn icon={StudentEstateArtwork} label="부동산" active={view === 'real_estate'} onClick={() => hasRealEstate && setView('real_estate')} /></div>
                     </nav>
                 )}
 
@@ -1751,18 +1762,19 @@ const StudentPage: React.FC<StudentPageProps> = ({ initialView, onBackToMenu }) 
 
                 <main className="student-main min-h-0 flex-grow overflow-y-auto p-4 md:p-6 pb-28 md:pb-6">
                     <div className="w-full max-w-6xl mx-auto">
-                        {(activeStudent || currentUser.role === Role.STUDENT) && <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-black text-slate-800">{view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'}</h2><FeatureGuide title={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} label={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} items={view === 'home' ? [{title:'자산을 확인해요',description:'현금과 투자·예금 현황을 한눈에 확인합니다.'},{title:'최근 활동을 봐요',description:'최근 거래 금액과 내용을 확인합니다.'}] : view === 'transfer' ? [{title:'받는 친구를 확인해요',description:'친구의 계좌번호를 정확히 입력합니다.'},{title:'금액을 확인해요',description:'송금 전 받는 사람과 금액을 다시 확인합니다.'}] : view === 'stocks' ? [{title:'종목을 살펴봐요',description:'현재 가격과 변화를 확인합니다.'},{title:'수량을 정해요',description:'내 잔액과 보유 수량을 확인한 뒤 거래합니다.'}] : view === 'savings' ? [{title:'상품을 비교해요',description:'만기, 이자율과 최대 가입 금액을 비교합니다.'},{title:'가입 후 확인해요',description:'내 예금에서 원금과 만기일을 확인합니다.'}] : [{title:'목표를 읽어요',description:'펀드의 목표와 모집·만기 일정을 확인합니다.'},{title:'위험과 보상을 확인해요',description:'성공과 실패 조건을 읽고 투자 수량을 결정합니다.'}]} /></div>}
+                        {(activeStudent || currentUser.role === Role.STUDENT) && <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="text-2xl font-black text-slate-800">{view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : view === 'real_estate' ? '부동산' : '펀드'}</h2>{view !== 'real_estate' && <FeatureGuide title={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} label={`${view === 'home' ? '내 자산' : view === 'transfer' ? '송금' : view === 'stocks' ? '주식' : view === 'savings' ? '예금' : '펀드'} 사용 안내`} items={view === 'home' ? [{title:'자산을 확인해요',description:'현금과 투자·예금 현황을 한눈에 확인합니다.'},{title:'최근 활동을 봐요',description:'최근 거래 금액과 내용을 확인합니다.'}] : view === 'transfer' ? [{title:'받는 친구를 확인해요',description:'친구의 계좌번호를 정확히 입력합니다.'},{title:'금액을 확인해요',description:'송금 전 받는 사람과 금액을 다시 확인합니다.'}] : view === 'stocks' ? [{title:'종목을 살펴봐요',description:'현재 가격과 변화를 확인합니다.'},{title:'수량을 정해요',description:'내 잔액과 보유 수량을 확인한 뒤 거래합니다.'}] : view === 'savings' ? [{title:'상품을 비교해요',description:'만기, 이자율과 최대 가입 금액을 비교합니다.'},{title:'가입 후 확인해요',description:'내 예금에서 원금과 만기일을 확인합니다.'}] : [{title:'목표를 읽어요',description:'펀드의 목표와 모집·만기 일정을 확인합니다.'},{title:'위험과 보상을 확인해요',description:'성공과 실패 조건을 읽고 투자 수량을 결정합니다.'}]} />}</div>}
                         {renderView()}
                     </div>
                 </main>
 
                 {(activeStudent || currentUser.role === Role.STUDENT) && (
-                    <nav className="md:hidden bg-white/90 backdrop-blur-2xl border-t border-gray-100 grid grid-cols-5 p-2.5 fixed bottom-0 left-0 right-0 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+                    <nav className="md:hidden bg-white/90 backdrop-blur-2xl border-t border-gray-100 grid grid-cols-6 p-2.5 fixed bottom-0 left-0 right-0 z-40 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
                         <MobileNavBtn icon={StudentHomeArtwork} label="홈" active={view === 'home'} onClick={() => setView('home')} />
                         <MobileNavBtn icon={StudentTransferArtwork} label="송금" active={view === 'transfer'} onClick={() => setView('transfer')} />
                         <MobileNavBtn icon={StudentStockArtwork} label="주식" active={view === 'stocks'} onClick={() => setView('stocks')} />
                         <MobileNavBtn icon={StudentFundArtwork} label="펀드" active={view === 'funds'} onClick={() => setView('funds')} />
                         <MobileNavBtn icon={StudentSavingsArtwork} label="예금" active={view === 'savings'} onClick={() => setView('savings')} />
+                        <div className={hasRealEstate ? '' : 'pointer-events-none opacity-40'}><MobileNavBtn icon={StudentEstateArtwork} label="부동산" active={view === 'real_estate'} onClick={() => hasRealEstate && setView('real_estate')} /></div>
                     </nav>
                 )}
             </div>

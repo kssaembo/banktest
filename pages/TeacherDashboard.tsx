@@ -1011,12 +1011,13 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
             const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
             try {
-                const [taxes, funds] = await Promise.all([
+                const [taxes, funds, highValueTransfers] = await Promise.all([
                     api.getTaxes(currentUser?.userId || ''),
-                    api.getFunds(currentUser?.userId || '')
+                    api.getFunds(currentUser?.userId || ''),
+                    api.getHighValueTransferAlerts(currentUser?.userId || '').catch(() => [])
                 ]);
 
-                taxes.forEach(tax => {
+                taxes.filter(tax => !tax.itemType || tax.itemType === 'tax').forEach(tax => {
                     const dDay = getDDay(tax.dueDate);
                     if (dDay >= 0 && dDay <= 3) {
                         newAlarms.push({
@@ -1050,24 +1051,22 @@ const DashboardView: React.FC<{ students: (User & { account: Account | null })[]
                         transactionMap[s.userId] = txns;
                         activityMap[s.userId] = txns.length;
 
-                        txns.forEach(t => {
-                            const transactionTime = new Date(t.date).getTime();
-                            if (Number.isFinite(transactionTime) && transactionTime >= oneWeekAgo) {
-                                if (Math.abs(t.amount) >= 100) {
-                                    newAlarms.push({
-                                        id: `large-tx-${t.transactionId}`,
-                                        type: 'info',
-                                        category: '고액거래',
-                                        message: `${s.name} 학생: ${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}${unit} 고액 거래 발생 (${t.description})`,
-                                        date: new Date(t.date)
-                                    });
-                                }
-                            }
-                        });
                     } else {
                         activityMap[s.userId] = 0;
                     }
                 }));
+
+                highValueTransfers.forEach(transfer => {
+                    const transactionTime = new Date(transfer.createdAt).getTime();
+                    if (Number.isFinite(transactionTime) && transactionTime >= oneWeekAgo) {
+                        newAlarms.push({
+                            id: `student-transfer-${transfer.transactionId}`,
+                            type: 'info', category: '고액 거래 확인',
+                            message: `${transfer.senderName} 학생이 ${transfer.receiverName} 학생에게 ${transfer.amount.toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit}을 송금했습니다.${transfer.memo ? ` (${transfer.memo})` : ''} 증여세 부과 대상 여부를 확인하세요.`,
+                            date: new Date(transfer.createdAt)
+                        });
+                    }
+                });
 
                 setStudentActivities(activityMap);
                 setStudentTransactions(transactionMap);
@@ -1695,6 +1694,8 @@ const TaxView: React.FC<{ students: User[] }> = ({ students }) => {
     }, [currentUser?.userId]);
 
     useEffect(() => { fetchTaxes(); }, [fetchTaxes]);
+    // 대출 상환 고지서는 목록에는 함께 표시하되 세금 통계에서는 제외합니다.
+    const regularTaxes = useMemo(() => taxes.filter(tax => !tax.itemType || tax.itemType === 'tax'), [taxes]);
 
     const handleDeleteConfirm = async () => {
         if (!confirmAction || confirmAction.type !== 'delete') return;
@@ -1727,7 +1728,7 @@ const TaxView: React.FC<{ students: User[] }> = ({ students }) => {
                     + 세금 고지
                 </button>
             </div>
-            <div className="mb-4"><OverviewCards items={[{label:'고지 건수',value:`${taxes.length}건`},{label:'납부 완료',value:`${taxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length}명`,color:'text-emerald-600'},{label:'미납',value:`${taxes.flatMap(t=>t.recipients).filter(r=>!r.isPaid).length}명`,color:'text-red-600'},{label:'전체 납부율',value:`${Math.round(taxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length/Math.max(1,taxes.flatMap(t=>t.recipients).length)*100)}%`,color:'text-blue-600'}]} /></div>
+            <div className="mb-4"><OverviewCards items={[{label:'세금 고지 건수',value:`${regularTaxes.length}건`},{label:'세금 납부 완료',value:`${regularTaxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length}명`,color:'text-emerald-600'},{label:'세금 미납',value:`${regularTaxes.flatMap(t=>t.recipients).filter(r=>!r.isPaid).length}명`,color:'text-red-600'},{label:'세금 납부율',value:`${Math.round(regularTaxes.flatMap(t=>t.recipients).filter(r=>r.isPaid).length/Math.max(1,regularTaxes.flatMap(t=>t.recipients).length)*100)}%`,color:'text-blue-600'}]} /></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
                 {taxes.map(tax => {
                     const paidRecipients = tax.recipients.filter(r => r.isPaid);
@@ -1740,12 +1741,12 @@ const TaxView: React.FC<{ students: User[] }> = ({ students }) => {
                         <div key={tax.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 transition-all">
                             <div className="flex justify-between items-start mb-2">
                                 <div>
-                                    <h3 className="font-bold text-lg">{tax.name}</h3>
+                                    <h3 className="font-bold text-lg">{tax.name}{tax.itemType?.startsWith('loan_') && <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700">대출 상환</span>}</h3>
                                     <p className="text-sm text-gray-500">납부 기한: {new Date(tax.dueDate).toLocaleDateString()}</p>
                                 </div>
                                 <div className="text-right">
                                     <span className="block font-bold text-lg text-red-600">{tax.amount.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}{unit}</span>
-                                    <button onClick={() => setConfirmAction({ type: 'delete', data: tax.id })} className="text-xs text-gray-400 hover:text-red-500 underline mt-1">삭제</button>
+                                    {(!tax.itemType || tax.itemType === 'tax') && <button onClick={() => setConfirmAction({ type: 'delete', data: tax.id })} className="text-xs text-gray-400 hover:text-red-500 underline mt-1">삭제</button>}
                                 </div>
                             </div>
                             <div className="mt-4"><DonutCard title={`납부율 ${Math.round(progress)}%`} centerLabel="대상 학생" data={[{name:'납부',value:paidCount,details:paidRecipients.map(r=>getStudentName(r.studentUserId))},{name:'미납',value:unpaidRecipients.length,details:unpaidRecipients.map(r=>getStudentName(r.studentUserId))}]}/></div>
