@@ -199,6 +199,8 @@ export interface RealEstateContract {
   teacherId: string;
   studentUserId: string;
   studentName?: string;
+  counterpartyUserId?: string;
+  counterpartyName?: string;
   contractType: RealEstateContractType;
   propertyName: string;
   address: string;

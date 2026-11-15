@@ -994,6 +994,7 @@ const requestEarlyLoanRepayment = async (teacherId: string, loanId: string): Pro
 
 const mapRealEstate = (row: any): RealEstateContract => ({
     id: row.id, teacherId: row.teacher_id, studentUserId: row.student_user_id, studentName: row.student_name,
+    counterpartyUserId: row.counterparty_user_id || undefined, counterpartyName: row.counterparty_name || undefined,
     contractType: row.contract_type, propertyName: row.property_name, address: row.address,
     studentRole: row.student_role, transactionAmount: Number(row.transaction_amount || 0),
     deposit: Number(row.deposit || 0), monthlyRent: Number(row.monthly_rent || 0),
@@ -1016,6 +1017,7 @@ const getStudentRealEstateContracts = async (studentUserId: string): Promise<Rea
 const saveRealEstateContract = async (teacherId: string, input: RealEstateContractInput, contractId?: string): Promise<RealEstateContract> => {
     const { data, error } = await supabase.rpc('classbank_save_real_estate_contract', {
         p_teacher_id: teacherId, p_contract_id: contractId || null, p_student_user_id: input.studentUserId,
+        p_counterparty_user_id: input.counterpartyUserId || null,
         p_contract_type: input.contractType, p_property_name: input.propertyName, p_address: input.address,
         p_student_role: input.studentRole, p_transaction_amount: input.transactionAmount, p_deposit: input.deposit,
         p_monthly_rent: input.monthlyRent, p_contract_date: input.contractDate, p_start_date: input.startDate || null,

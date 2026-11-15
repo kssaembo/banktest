@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { csvCell, downloadText, parseCsv, printRealEstateContract } from '../services/financeDocuments';
+import { csvCell, downloadText, parseCsv, printRealEstateContract, readCsvFile } from '../services/financeDocuments';
 import { LoanContract, LoanContractInput, RealEstateContract, RealEstateContractInput, Role, User } from '../types';
 import { FeatureGuide } from './FeatureGuide';
 
@@ -10,8 +10,8 @@ const money = (value: number) => Number(value || 0).toLocaleString(undefined, { 
 const card = 'rounded-2xl border border-blue-100 bg-white p-4 shadow-sm';
 const field = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-400';
 
-export const FinanceTabArtwork = ({ kind }: { kind: 'loan' | 'estate' }) => (
-  <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-xl" aria-hidden="true">{kind === 'loan' ? '🤝' : '🏠'}</span>
+export const FinanceTabArtwork = ({ kind, className = '' }: { kind: 'loan' | 'estate'; className?: string }) => (
+  <span className={`inline-flex items-center justify-center bg-transparent text-[15px] leading-none ${className}`} aria-hidden="true">{kind === 'loan' ? '🤝' : '🏠'}</span>
 );
 
 const Notice = ({ message, onClose }: { message: string; onClose: () => void }) => (
@@ -75,7 +75,7 @@ export const LoanManagement: React.FC = () => {
   </div>;
 };
 
-const emptyEstate = (studentId = ''): RealEstateContractInput => ({ studentUserId: studentId, contractType: 'sale', propertyName: '', address: '', studentRole: 'owner', transactionAmount: 0, deposit: 0, monthlyRent: 0, contractDate: today(), startDate: today(), endDate: '', specialTerms: '', status: 'active' });
+const emptyEstate = (studentId = ''): RealEstateContractInput => ({ studentUserId: studentId, counterpartyUserId: '', contractType: 'sale', propertyName: '', address: '', studentRole: 'buyer', transactionAmount: 0, deposit: 0, monthlyRent: 0, contractDate: today(), startDate: today(), endDate: '', specialTerms: '', status: 'active' });
 
 export const RealEstateManagement: React.FC = () => {
   const { currentUser } = useContext(AuthContext); const unit = currentUser?.currencyUnit || '권'; const fileRef = useRef<HTMLInputElement>(null);
@@ -83,17 +83,17 @@ export const RealEstateManagement: React.FC = () => {
   const [editing, setEditing] = useState<RealEstateContract | 'new' | null>(null); const [form, setForm] = useState<RealEstateContractInput>(emptyEstate()); const [notice, setNotice] = useState('');
   const refresh = useCallback(async () => { if (!currentUser) return; const [studentRows, contracts] = await Promise.all([api.getUsersByRole(Role.STUDENT, currentUser.userId), api.getRealEstateContracts(currentUser.userId)]); setStudents(studentRows); setRows(contracts); }, [currentUser]);
   useEffect(() => { refresh().catch(error => setNotice(error.message)); }, [refresh]);
-  const openForm = (contract?: RealEstateContract) => { setEditing(contract || 'new'); setForm(contract ? { studentUserId: contract.studentUserId, contractType: contract.contractType, propertyName: contract.propertyName, address: contract.address, studentRole: contract.studentRole, transactionAmount: contract.transactionAmount, deposit: contract.deposit, monthlyRent: contract.monthlyRent, contractDate: contract.contractDate, startDate: contract.startDate, endDate: contract.endDate, specialTerms: contract.specialTerms, status: contract.status } : emptyEstate(selected?.userId || students[0]?.userId)); };
+  const openForm = (contract?: RealEstateContract) => { setEditing(contract || 'new'); setForm(contract ? { studentUserId: contract.studentUserId, counterpartyUserId: contract.counterpartyUserId || '', contractType: contract.contractType, propertyName: contract.propertyName, address: contract.address, studentRole: contract.studentRole, transactionAmount: contract.transactionAmount, deposit: contract.deposit, monthlyRent: contract.monthlyRent, contractDate: contract.contractDate, startDate: contract.startDate, endDate: contract.endDate, specialTerms: contract.specialTerms, status: contract.status } : emptyEstate(selected?.userId || students[0]?.userId)); };
   const save = async () => { if (!currentUser) return; try { await api.saveRealEstateContract(currentUser.userId, form, editing === 'new' ? undefined : editing?.id); setEditing(null); setNotice('부동산 계약을 저장했습니다.'); await refresh(); } catch (error: any) { setNotice(error.message); } };
   const downloadTemplate = () => {
-    const headers = ['학생이름','계약종류','자리번호','학생역할','거래금액','보증금','월세','계약일','시작일','종료일','특약사항','계약상태'];
-    const example = [students[0]?.name || '김민준','월세','3번','임차인',0,1000,100,today(),today(),'','특약 없음','계약중'];
-    downloadText('클래스뱅크-부동산-업로드-양식.csv', [headers, example].map(row => row.map(csvCell).join(',')).join('\n'));
+    const headers = ['학생이름','계약종류','자리번호','학생역할','상대학생이름','거래금액','보증금','월세','계약일','시작일','종료일','특약사항','계약상태'];
+    const example = [students[0]?.name || '김민준','매매','3번','매수인',students[1]?.name || '이서연',1000,0,0,today(),today(),'','특약 없음','계약중'];
+    downloadText('클래스뱅크-부동산-업로드-양식.csv', [headers, example].map(row => row.map(csvCell).join(',')).join('\r\n'));
   };
   const upload = async (file: File) => {
     if (!currentUser) return;
     try {
-      const parsed = parseCsv((await file.text()).replace(/^\uFEFF/, '')); const headers = parsed.shift() || [];
+      const parsed = parseCsv(await readCsvFile(file)); const headers = (parsed.shift() || []).map(header => header.replace(/^\uFEFF/, '').trim());
       const requiredHeaders = ['학생이름','계약종류','자리번호','학생역할','계약일'];
       if (!requiredHeaders.every(header => headers.includes(header))) throw new Error('CSV 필수 열이 없습니다. 먼저 양식을 내려받아 작성해 주세요.');
       const contractTypes: Record<string, RealEstateContractInput['contractType']> = { '매매':'sale', '전세':'jeonse', '월세':'monthly_rent' };
@@ -102,11 +102,17 @@ export const RealEstateManagement: React.FC = () => {
       const inputs = parsed.map((values, rowIndex): RealEstateContractInput => {
         const data = Object.fromEntries(headers.map((header, index) => [header, values[index] || '']));
         const studentName = data['학생이름'].trim();
+        if (!studentName) throw new Error(`${rowIndex + 2}행의 학생이름이 비어 있습니다.`);
         const matchingStudents = students.filter(student => student.name.trim() === studentName);
         if (matchingStudents.length === 0) throw new Error(`${rowIndex + 2}행의 '${studentName}' 학생을 찾을 수 없습니다.`);
         if (matchingStudents.length > 1) throw new Error(`${rowIndex + 2}행의 '${studentName}' 학생은 동명이인이 있어 이름만으로 구분할 수 없습니다.`);
         const contractType = contractTypes[data['계약종류'].trim()];
         const studentRole = studentRoles[data['학생역할'].trim()];
+        const counterpartyName = (data['상대학생이름'] || '').trim();
+        const matchingCounterparties = counterpartyName ? students.filter(student => student.name.trim() === counterpartyName) : [];
+        if (counterpartyName && matchingCounterparties.length === 0) throw new Error(`${rowIndex + 2}행의 상대 학생 '${counterpartyName}'을 찾을 수 없습니다.`);
+        if (matchingCounterparties.length > 1) throw new Error(`${rowIndex + 2}행의 상대 학생 '${counterpartyName}'은 동명이인이 있어 이름만으로 구분할 수 없습니다.`);
+        if (matchingCounterparties[0]?.userId === matchingStudents[0].userId) throw new Error(`${rowIndex + 2}행의 학생과 상대 학생은 달라야 합니다.`);
         const statusText = (data['계약상태'] || '').trim() || '계약중';
         const status = statuses[statusText];
         const seatNumber = data['자리번호'].trim();
@@ -117,7 +123,7 @@ export const RealEstateManagement: React.FC = () => {
         const amounts = [Number(data['거래금액']||0), Number(data['보증금']||0), Number(data['월세']||0)];
         if (amounts.some(amount => !Number.isFinite(amount) || amount < 0)) throw new Error(`${rowIndex + 2}행의 금액을 확인해 주세요.`);
         return {
-          studentUserId:matchingStudents[0].userId, contractType, propertyName:`자리 ${seatNumber}`, address:seatNumber,
+          studentUserId:matchingStudents[0].userId, counterpartyUserId:matchingCounterparties[0]?.userId || '', contractType, propertyName:`자리 ${seatNumber}`, address:seatNumber,
           studentRole, transactionAmount:amounts[0], deposit:amounts[1], monthlyRent:amounts[2],
           contractDate:data['계약일'], startDate:data['시작일']||undefined, endDate:data['종료일']||undefined,
           specialTerms:data['특약사항']||'', status
@@ -128,17 +134,18 @@ export const RealEstateManagement: React.FC = () => {
     } catch (error:any) { setNotice(error.message || 'CSV를 처리하지 못했습니다.'); }
     finally { if (fileRef.current) fileRef.current.value=''; }
   };
-  const visible = selected ? rows.filter(row => row.studentUserId === selected.userId) : [];
+  const visible = selected ? rows.filter(row => row.studentUserId === selected.userId || row.counterpartyUserId === selected.userId) : [];
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><h2 className="text-2xl font-black">부동산 관리</h2><FeatureGuide title="부동산 관리 사용 안내" label="부동산 관리 사용 안내" items={[{title:'학생을 선택해요',description:'학생별로 여러 매매·전세·월세 계약을 관리할 수 있습니다.'},{title:'계약서를 저장해요',description:'인쇄 화면에서 PDF로 저장할 수 있고 CSV 일괄 등록도 지원합니다.'}]}/></div><div className="flex flex-wrap gap-2"><button onClick={downloadTemplate} className="rounded-xl border bg-white px-3 py-2 text-sm font-bold">CSV 양식</button><button onClick={() => fileRef.current?.click()} className="rounded-xl border bg-white px-3 py-2 text-sm font-bold">CSV 업로드</button><input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={event => event.target.files?.[0] && upload(event.target.files[0])}/><button onClick={() => openForm()} className="rounded-xl bg-blue-600 px-4 py-2 font-black text-white">+ 계약 등록</button></div></div>
-    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{students.map(student => <button key={student.userId} onClick={() => setSelected(student)} className={`rounded-2xl border p-4 text-center transition ${selected?.userId===student.userId?'border-blue-500 bg-blue-50 shadow-md':'border-blue-100 bg-white hover:-translate-y-0.5'}`}><img src="/design/student-page/student-avatar-neutral.webp" alt="" className="mx-auto h-14 w-14 rounded-full"/><strong className="mt-2 block">{student.name}</strong><small className="text-slate-400">{rows.filter(row=>row.studentUserId===student.userId).length}건</small></button>)}</div>
-    {selected && <div className={card}><div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-black">{selected.name} 학생 계약</h3><button onClick={() => openForm()} className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-black text-blue-700">+ 추가</button></div><div className="grid gap-3 md:grid-cols-2">{visible.map(contract => <article key={contract.id} className="rounded-2xl border p-4"><span className="text-xs font-black text-blue-600">{contract.contractType==='sale'?'매매':contract.contractType==='jeonse'?'전세':'월세'}</span><h4 className="mt-1 font-black">{contract.propertyName}</h4><p className="mt-1 text-sm text-slate-500">{contract.address}</p><div className="mt-3 flex gap-2"><button onClick={()=>openForm(contract)} className="rounded-lg border px-3 py-2 text-xs font-bold">수정</button><button onClick={()=>{try{printRealEstateContract(contract,unit);}catch(error:any){setNotice(error.message);}}} className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white">계약서 PDF</button></div></article>)}</div>{!visible.length&&<p className="py-8 text-center text-slate-400">등록된 계약이 없습니다.</p>}</div>}
+    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{students.map(student => <button key={student.userId} onClick={() => setSelected(student)} className={`rounded-2xl border p-4 text-center transition ${selected?.userId===student.userId?'border-blue-500 bg-blue-50 shadow-md':'border-blue-100 bg-white hover:-translate-y-0.5'}`}><img src="/design/student-page/student-avatar-neutral.webp" alt="" className="mx-auto h-14 w-14 rounded-full"/><strong className="mt-2 block">{student.name}</strong><small className="text-slate-400">{rows.filter(row=>row.studentUserId===student.userId||row.counterpartyUserId===student.userId).length}건</small></button>)}</div>
+    {selected && <div className={card}><div className="mb-4 flex items-center justify-between"><h3 className="text-lg font-black">{selected.name} 학생 계약</h3><button onClick={() => openForm()} className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-black text-blue-700">+ 추가</button></div><div className="grid gap-3 md:grid-cols-2">{visible.map(contract => <article key={contract.id} className="rounded-2xl border p-4"><span className="text-xs font-black text-blue-600">{contract.contractType==='sale'?'매매':contract.contractType==='jeonse'?'전세':'월세'}</span><h4 className="mt-1 font-black">{contract.propertyName}</h4><p className="mt-1 text-sm text-slate-500">{contract.address}</p><p className="mt-2 text-sm font-bold text-slate-700">{contract.studentName}{contract.counterpartyName ? ` ↔ ${contract.counterpartyName}` : ''}</p><div className="mt-3 flex gap-2"><button onClick={()=>openForm(contract)} className="rounded-lg border px-3 py-2 text-xs font-bold">수정</button><button onClick={()=>{try{printRealEstateContract(contract,unit);}catch(error:any){setNotice(error.message);}}} className="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white">계약서 PDF</button></div></article>)}</div>{!visible.length&&<p className="py-8 text-center text-slate-400">등록된 계약이 없습니다.</p>}</div>}
     {!selected && <div className={`${card} py-14 text-center text-slate-400`}>학생을 선택하면 계약 목록이 나타납니다.</div>}
     {editing && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/45 p-4"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6"><div className="mb-4 flex justify-between"><h3 className="text-xl font-black">부동산 계약</h3><button onClick={()=>setEditing(null)} className="rounded-full bg-slate-100 px-3">×</button></div><div className="grid gap-3 sm:grid-cols-2">
-      <label className="text-sm font-bold">학생<select value={form.studentUserId} onChange={e=>setForm(v=>({...v,studentUserId:e.target.value}))} className={field}>{students.map(s=><option key={s.userId} value={s.userId}>{s.name}</option>)}</select></label>
+      <label className="text-sm font-bold">학생 1<select value={form.studentUserId} onChange={e=>setForm(v=>({...v,studentUserId:e.target.value,counterpartyUserId:v.counterpartyUserId===e.target.value?'':v.counterpartyUserId}))} className={field}>{students.map(s=><option key={s.userId} value={s.userId}>{s.name}</option>)}</select></label>
+      <label className="text-sm font-bold">상대 학생 (선택)<select value={form.counterpartyUserId||''} onChange={e=>setForm(v=>({...v,counterpartyUserId:e.target.value}))} className={field}><option value="">없음</option>{students.filter(s=>s.userId!==form.studentUserId).map(s=><option key={s.userId} value={s.userId}>{s.name}</option>)}</select></label>
       <label className="text-sm font-bold">계약 종류<select value={form.contractType} onChange={e=>setForm(v=>({...v,contractType:e.target.value as any}))} className={field}><option value="sale">매매</option><option value="jeonse">전세</option><option value="monthly_rent">월세</option></select></label>
       <label className="text-sm font-bold">부동산명<input value={form.propertyName} onChange={e=>setForm(v=>({...v,propertyName:e.target.value}))} className={field}/></label><label className="text-sm font-bold">주소<input value={form.address} onChange={e=>setForm(v=>({...v,address:e.target.value}))} className={field}/></label>
-      <label className="text-sm font-bold">학생 역할<select value={form.studentRole} onChange={e=>setForm(v=>({...v,studentRole:e.target.value as any}))} className={field}><option value="owner">소유자</option><option value="tenant">임차인</option><option value="buyer">매수인</option><option value="seller">매도인</option></select></label><label className="text-sm font-bold">거래 금액<input type="number" value={form.transactionAmount} onChange={e=>setForm(v=>({...v,transactionAmount:Number(e.target.value)}))} className={field}/></label>
+      <label className="text-sm font-bold">학생 1 역할<select value={form.studentRole} onChange={e=>setForm(v=>({...v,studentRole:e.target.value as any}))} className={field}><option value="owner">소유자</option><option value="tenant">임차인</option><option value="buyer">매수인</option><option value="seller">매도인</option></select></label><label className="text-sm font-bold">거래 금액<input type="number" value={form.transactionAmount} onChange={e=>setForm(v=>({...v,transactionAmount:Number(e.target.value)}))} className={field}/></label>
       <label className="text-sm font-bold">보증금<input type="number" value={form.deposit} onChange={e=>setForm(v=>({...v,deposit:Number(e.target.value)}))} className={field}/></label><label className="text-sm font-bold">월세<input type="number" value={form.monthlyRent} onChange={e=>setForm(v=>({...v,monthlyRent:Number(e.target.value)}))} className={field}/></label>
       <label className="text-sm font-bold">계약일<input type="date" value={form.contractDate} onChange={e=>setForm(v=>({...v,contractDate:e.target.value}))} className={field}/></label><label className="text-sm font-bold">종료일<input type="date" value={form.endDate||''} onChange={e=>setForm(v=>({...v,endDate:e.target.value}))} className={field}/></label>
     </div><label className="mt-3 block text-sm font-bold">특약사항<textarea value={form.specialTerms} onChange={e=>setForm(v=>({...v,specialTerms:e.target.value}))} className={`${field} min-h-24`}/></label><button onClick={save} className="mt-5 w-full rounded-xl bg-blue-600 py-3 font-black text-white">계약 저장</button></div></div>}
@@ -149,5 +156,5 @@ export const RealEstateManagement: React.FC = () => {
 export const StudentRealEstateView: React.FC<{ user: User }> = ({ user }) => {
   const [rows,setRows]=useState<RealEstateContract[]>([]);const [error,setError]=useState('');const unit=user.currencyUnit||'권';
   useEffect(()=>{api.getStudentRealEstateContracts(user.userId).then(setRows).catch(e=>setError(e.message));},[user.userId]);
-  return <div className="space-y-4"><div className="rounded-3xl bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white"><h2 className="text-2xl font-black">나의 부동산</h2><p className="mt-1 text-sm text-blue-50">내 이름으로 등록된 계약을 확인할 수 있어요. 학생은 계약을 수정할 수 없습니다.</p></div>{rows.map(contract=><article key={contract.id} className={card}><span className="text-xs font-black text-blue-600">{contract.contractType==='sale'?'매매':contract.contractType==='jeonse'?'전세':'월세'}</span><h3 className="mt-1 text-lg font-black">{contract.propertyName}</h3><p className="text-sm text-slate-500">{contract.address}</p><div className="mt-4 grid grid-cols-2 gap-2 text-sm"><div className="rounded-xl bg-slate-50 p-3">보증금 <strong className="block">{money(contract.deposit)}{unit}</strong></div><div className="rounded-xl bg-slate-50 p-3">월세 <strong className="block">{money(contract.monthlyRent)}{unit}</strong></div></div><button onClick={()=>{try{printRealEstateContract(contract,unit);}catch(e:any){setError(e.message);}}} className="mt-4 rounded-xl bg-slate-800 px-4 py-2.5 font-black text-white">계약서 보기 / PDF</button></article>)}{!rows.length&&!error&&<div className={`${card} py-16 text-center text-slate-400`}>등록된 부동산 계약이 없습니다.</div>}{error&&<Notice message={error} onClose={()=>setError('')}/>}</div>;
+  return <div className="space-y-4"><div className="rounded-3xl bg-gradient-to-r from-blue-600 to-cyan-500 p-6 text-white"><h2 className="text-2xl font-black">나의 부동산</h2><p className="mt-1 text-sm text-blue-50">내 이름으로 등록된 계약을 확인할 수 있어요. 학생은 계약을 수정할 수 없습니다.</p></div>{rows.map(contract=><article key={contract.id} className={card}><span className="text-xs font-black text-blue-600">{contract.contractType==='sale'?'매매':contract.contractType==='jeonse'?'전세':'월세'}</span><h3 className="mt-1 text-lg font-black">{contract.propertyName}</h3><p className="text-sm text-slate-500">{contract.address}</p><p className="mt-2 text-sm font-bold text-slate-700">{contract.studentName}{contract.counterpartyName ? ` ↔ ${contract.counterpartyName}` : ''}</p><div className="mt-4 grid grid-cols-2 gap-2 text-sm"><div className="rounded-xl bg-slate-50 p-3">보증금 <strong className="block">{money(contract.deposit)}{unit}</strong></div><div className="rounded-xl bg-slate-50 p-3">월세 <strong className="block">{money(contract.monthlyRent)}{unit}</strong></div></div><button onClick={()=>{try{printRealEstateContract(contract,unit);}catch(e:any){setError(e.message);}}} className="mt-4 rounded-xl bg-slate-800 px-4 py-2.5 font-black text-white">계약서 보기 / PDF</button></article>)}{!rows.length&&!error&&<div className={`${card} py-16 text-center text-slate-400`}>등록된 부동산 계약이 없습니다.</div>}{error&&<Notice message={error} onClose={()=>setError('')}/>}</div>;
 };

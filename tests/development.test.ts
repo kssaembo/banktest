@@ -10,10 +10,17 @@ Object.defineProperty(globalThis, 'sessionStorage', { value: {
 let requests = 0;
 globalThis.fetch = async () => { requests++; throw new Error('Network must never be used by this test'); };
 const { api, resetDemo } = await import('../services/demoApi');
+const { parseCsv } = await import('../services/financeDocuments');
 const student = 'guest_student_1';
 const teacher = 'guest_teacher';
 beforeEach(() => { resetDemo(); requests = 0; });
 const balance = async (uid: string) => (await api.getStudentAccountByUserId(uid))!.balance;
+
+test('CSV parser accepts quoted, unquoted and tab-separated Hancom-style rows', () => {
+  assert.deepEqual(parseCsv('"학생이름","특약사항"\r\n"김민준","쉼표, 포함"'), [['학생이름','특약사항'],['김민준','쉼표, 포함']]);
+  assert.deepEqual(parseCsv('학생이름,계약종류\r\n김민준,매매'), [['학생이름','계약종류'],['김민준','매매']]);
+  assert.deepEqual(parseCsv('학생이름\t계약종류\r\n김민준\t매매'), [['학생이름','계약종류'],['김민준','매매']]);
+});
 
 test('default mode blocks direct Supabase access even when live-looking keys exist', async () => {
   const { isDemo } = await import('../services/runtime');
@@ -169,6 +176,50 @@ test('economy stories keep multiple comments and edit only the selected comment'
   assert.equal(updated.length, 2);
   assert.ok(updated.some(comment => comment.content === '첫 번째 생각을 수정함'));
   assert.ok(updated.some(comment => comment.content === '두 번째 경제 생각'));
+});
+test('loan payout is idempotent and due bills reuse tax payment', async () => {
+  const studentBefore = await balance(student);
+  const treasuryBefore = (await api.getTeacherAccount())!.balance;
+  const loan = await api.createLoanContract(teacher, {
+    studentUserId: student, principal: 400, interestRate: 10, installmentCount: 2,
+    installmentIntervalDays: 7, startDate: new Date().toISOString().slice(0, 10), specialTerms: '테스트 계약'
+  });
+  assert.equal((await api.getMyUnpaidTaxes(student)).some(row => row.loanContractId === loan.id), false);
+  await api.disburseLoan(teacher, loan.id);
+  await assert.rejects(api.disburseLoan(teacher, loan.id), /이미/);
+  assert.equal(await balance(student), studentBefore + 400);
+  const bill = (await api.getMyUnpaidTaxes(student)).find(row => row.loanContractId === loan.id)!;
+  assert.equal(bill.itemType, 'loan_installment');
+  await api.payTax(student, bill.taxId);
+  assert.equal(await balance(student), studentBefore + 400 - 220);
+  assert.equal((await api.getTeacherAccount())!.balance, treasuryBefore - 400 + 220);
+});
+test('real-estate contracts allow multiple records and student read-only lookup', async () => {
+  await api.saveRealEstateContract(teacher, {
+    studentUserId: student, counterpartyUserId: 'guest_student_2', contractType: 'monthly_rent', propertyName: '교실 상가', address: 'A구역',
+    studentRole: 'tenant', transactionAmount: 0, deposit: 100, monthlyRent: 10,
+    contractDate: new Date().toISOString().slice(0,10), startDate: new Date().toISOString().slice(0,10),
+    specialTerms: '', status: 'active'
+  });
+  await api.saveRealEstateContract(teacher, {
+    studentUserId: student, contractType: 'sale', propertyName: '교실 주택', address: 'B구역',
+    studentRole: 'owner', transactionAmount: 500, deposit: 0, monthlyRent: 0,
+    contractDate: new Date().toISOString().slice(0,10), specialTerms: '', status: 'active'
+  });
+  assert.equal((await api.getStudentRealEstateContracts(student)).length, 3);
+  const counterpartRows = await api.getStudentRealEstateContracts('guest_student_2');
+  assert.equal(counterpartRows.length, 1);
+  assert.equal(counterpartRows[0].counterpartyName, '이서연');
+});
+test('high-value alerts include 30 but exclude 29 and teacher transfers', async () => {
+  const recipient = (await api.getStudentAccountByUserId('guest_student_2'))!;
+  await api.transfer(student, recipient.accountId, 29, '소액');
+  await api.transfer(student, recipient.accountId, 30, '확인 대상');
+  await api.bankerDeposit(student, 100);
+  const alerts = await api.getHighValueTransferAlerts(teacher);
+  assert.equal(alerts.some(row => row.amount === 29), false);
+  assert.equal(alerts.filter(row => row.amount === 30).length, 1);
+  assert.equal(alerts.some(row => row.memo === '은행 입금'), false);
 });
 test('real authentication and SQL-only analysis are explicitly unavailable locally', async () => {
   await assert.rejects(api.signupTeacher('id', 'password', 'name', 'unit'), /실제 인증/);

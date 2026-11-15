@@ -12,8 +12,8 @@ import { StockTransactionsModal } from './TeacherDashboard';
 import { FinanceTabArtwork, LoanManagement, RealEstateManagement } from '../components/FinanceManagement';
 
 type View = 'deposit_withdraw' | 'stock_exchange' | 'savings_management' | 'loans' | 'real_estate';
-const LoanTabIcon = () => <FinanceTabArtwork kind="loan" />;
-const EstateTabIcon = () => <FinanceTabArtwork kind="estate" />;
+const LoanTabIcon = ({ className }: { className?: string }) => <FinanceTabArtwork kind="loan" className={className} />;
+const EstateTabIcon = ({ className }: { className?: string }) => <FinanceTabArtwork kind="estate" className={className} />;
 
 const BankerPage: React.FC<{ onBackToMenu?: () => void }> = ({ onBackToMenu }) => {
     const { currentUser, logout } = useContext(AuthContext);

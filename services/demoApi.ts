@@ -368,13 +368,13 @@ const local: LocalApi = {
     const billId=id();state.taxes.push({id:billId,name:'대출 조기상환',amount,dueDate:now(),teacher_id:teacher,itemType:'loan_early_repayment',loanContractId:loanId,enabled:true,createdAt:now()});state.taxPayments.push({userId:loan.studentUserId,taxId:billId,paid:false});
     loan.status='early_repayment_pending';loan.updatedAt=now();return '조기상환 고지서를 만들었습니다.';
   },
-  getRealEstateContracts: () => state.realEstateContracts.map((row:any)=>({...row,studentName:user(row.studentUserId)?.name||''})),
-  getStudentRealEstateContracts: uid => state.realEstateContracts.filter((row:any)=>row.studentUserId===uid),
+  getRealEstateContracts: () => state.realEstateContracts.map((row:any)=>({...row,studentName:user(row.studentUserId)?.name||'',counterpartyName:row.counterpartyUserId?user(row.counterpartyUserId)?.name||'':undefined})),
+  getStudentRealEstateContracts: uid => state.realEstateContracts.filter((row:any)=>row.studentUserId===uid||row.counterpartyUserId===uid).map((row:any)=>({...row,studentName:user(row.studentUserId)?.name||'',counterpartyName:row.counterpartyUserId?user(row.counterpartyUserId)?.name||'':undefined})),
   saveRealEstateContract: (_teacherId,input,contractId) => {
-    required(user(input.studentUserId)); const stamp=now();
+    required(user(input.studentUserId)); if(input.counterpartyUserId){required(user(input.counterpartyUserId));if(input.counterpartyUserId===input.studentUserId)throw new Error('학생과 상대 학생은 달라야 합니다.');} const stamp=now();
     if(!input.propertyName.trim()||!input.address.trim())throw new Error('부동산명과 주소를 입력하세요.');
     if(contractId){const row:any=required(state.realEstateContracts.find((item:any)=>item.id===contractId));Object.assign(row,input,{updatedAt:stamp});return row;}
-    const row:any={...input,id:id(),teacherId:teacher,studentName:user(input.studentUserId)?.name||'',createdAt:stamp,updatedAt:stamp};state.realEstateContracts.push(row);return row;
+    const row:any={...input,id:id(),teacherId:teacher,studentName:user(input.studentUserId)?.name||'',counterpartyName:input.counterpartyUserId?user(input.counterpartyUserId)?.name||'':undefined,createdAt:stamp,updatedAt:stamp};state.realEstateContracts.push(row);return row;
   },
   getHighValueTransferAlerts: () => {
     const seen=new Set<string>(); return state.transactions.filter(t=>t.type===T.TRANSFER&&Number(t.amount)>=30&&t.senderId&&t.receiverId&&user(t.senderId)?.role===Role.STUDENT&&user(t.receiverId)?.role===Role.STUDENT).filter(t=>{const key=`${t.senderId}:${t.receiverId}:${t.amount}:${t.date}`;if(seen.has(key))return false;seen.add(key);return true;}).map(t=>({transactionId:t.transactionId,senderUserId:t.senderId,senderName:user(t.senderId)?.name||'',receiverUserId:t.receiverId,receiverName:user(t.receiverId)?.name||'',amount:Number(t.amount),memo:t.description||'',createdAt:t.date}));
