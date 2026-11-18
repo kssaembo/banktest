@@ -175,8 +175,12 @@ export interface LoanContract {
   specialTerms: string;
   status: LoanStatus;
   disbursedAt?: string;
+  studentAccountId?: string;
+  studentAccountBalance?: number;
   paidAmount: number;
   remainingAmount: number;
+  remainingPrincipal: number;
+  partialRepaymentAmount: number;
   paidInstallments: number;
   createdAt: string;
   updatedAt: string;

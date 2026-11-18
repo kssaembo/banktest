@@ -314,8 +314,10 @@ const local: LocalApi = {
   getLoanContracts: () => state.loanContracts.map((loan:any) => {
     const bills = state.taxes.filter(t => t.loanContractId === loan.id && t.enabled !== false);
     const paidBills = bills.filter(t => state.taxPayments.find(p => p.taxId === t.id)?.paid);
-    const paidAmount = paidBills.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-    return { ...loan, studentName: user(loan.studentUserId)?.name || '', paidAmount, remainingAmount: money(Math.max(0, loan.totalRepayment - paidAmount)), paidInstallments: paidBills.length };
+    const scheduledPaid = money(paidBills.reduce((sum, t) => sum + Number(t.amount || 0), 0));
+    const remainingAmount = money(bills.filter(t => !state.taxPayments.find(p => p.taxId === t.id)?.paid).reduce((sum, t) => sum + Number(t.amount || 0), 0));
+    const partialRepaymentAmount = money(loan.partialRepaymentAmount || 0);
+    return { ...loan, studentName: user(loan.studentUserId)?.name || '', studentAccountBalance: account(loan.studentUserId).balance, paidAmount: money(scheduledPaid + partialRepaymentAmount), remainingAmount, totalRepayment: money(scheduledPaid + partialRepaymentAmount + remainingAmount), paidInstallments: paidBills.length };
   }),
   createLoanContract: (_teacherId, input) => {
     positive(input.principal); positive(input.installmentCount); positive(input.installmentIntervalDays);
@@ -323,7 +325,8 @@ const local: LocalApi = {
     required(user(input.studentUserId));
     const totalInterest = money(input.principal * input.interestRate / 100);
     const totalRepayment = money(input.principal + totalInterest);
-    const loan:any = { id:id(), teacherId:teacher, ...input, totalInterest, totalRepayment, status:'draft', paidAmount:0, remainingAmount:totalRepayment, paidInstallments:0, createdAt:now(), updatedAt:now() };
+    const studentAccount=account(input.studentUserId);
+    const loan:any = { id:id(), teacherId:teacher, ...input, totalInterest, totalRepayment, status:'draft', studentAccountId:studentAccount.accountId, studentAccountBalance:studentAccount.balance, paidAmount:0, remainingAmount:totalRepayment, remainingPrincipal:input.principal, partialRepaymentAmount:0, paidInstallments:0, createdAt:now(), updatedAt:now() };
     state.loanContracts.push(loan);
     for (let index=1; index<=input.installmentCount; index+=1) {
       const billId=id(); const paidBefore=money(totalRepayment/input.installmentCount*(index-1));
@@ -355,8 +358,30 @@ const local: LocalApi = {
     const loan:any=required(state.loanContracts.find((row:any)=>row.id===loanId));
     if(loan.status!=='draft'||loan.disbursedAt)throw new Error('이미 지급했거나 지급할 수 없는 계약입니다.');
     move(treasury(),account(loan.studentUserId),loan.principal,'대출금 지급',T.TRANSFER,T.TRANSFER);
-    loan.status='active';loan.disbursedAt=now();loan.updatedAt=now();state.taxes.filter(t=>t.loanContractId===loanId).forEach(t=>{t.enabled=true;});
+    loan.status='active';loan.disbursedAt=now();loan.updatedAt=now();loan.studentAccountBalance=account(loan.studentUserId).balance;state.taxes.filter(t=>t.loanContractId===loanId).forEach(t=>{t.enabled=true;});
     return '대출금 지급이 완료되었습니다.';
+  },
+  deleteLoanContract: (_teacherId, loanId) => {
+    const loan:any=required(state.loanContracts.find((row:any)=>row.id===loanId));
+    if(loan.status!=='draft'||loan.disbursedAt)throw new Error('대출금 지급 전 계약만 삭제할 수 있습니다.');
+    const billIds=new Set(state.taxes.filter(t=>t.loanContractId===loanId).map(t=>t.id));
+    state.taxes=state.taxes.filter(t=>!billIds.has(t.id));state.taxPayments=state.taxPayments.filter(p=>!billIds.has(p.taxId));
+    state.loanContracts=state.loanContracts.filter((row:any)=>row.id!==loanId);return '대출 계약을 삭제했습니다.';
+  },
+  makePartialLoanRepayment: (_teacherId, loanId, rawAmount) => {
+    const loan:any=required(state.loanContracts.find((row:any)=>row.id===loanId));const amount=money(Number(rawAmount));
+    if(loan.status!=='active')throw new Error('상환 중인 계약만 중도상환할 수 있습니다.');
+    if(!Number.isFinite(amount)||amount<=0||amount>loan.remainingPrincipal)throw new Error('중도상환 금액을 확인해 주세요.');
+    move(account(loan.studentUserId),treasury(),amount,'대출 중도상환',T.TRANSFER,T.TRANSFER);
+    const oldBills=state.taxes.filter(t=>t.loanContractId===loanId&&t.itemType==='loan_installment');
+    const paidBills=oldBills.filter(t=>state.taxPayments.find(p=>p.taxId===t.id)?.paid);const paidTotal=money(paidBills.reduce((sum,t)=>sum+t.amount,0));
+    const unpaidIds=new Set(oldBills.filter(t=>!paidBills.some(p=>p.id===t.id)).map(t=>t.id));state.taxes=state.taxes.filter(t=>!unpaidIds.has(t.id));state.taxPayments=state.taxPayments.filter(p=>!unpaidIds.has(p.taxId));
+    loan.partialRepaymentAmount=money((loan.partialRepaymentAmount||0)+amount);loan.paidAmount=money(paidTotal+loan.partialRepaymentAmount);loan.remainingPrincipal=money(Math.max(0,loan.remainingPrincipal-amount));
+    const futureInterest=money(loan.remainingPrincipal*loan.interestRate/100);loan.totalInterest=futureInterest;loan.totalRepayment=money(loan.paidAmount+loan.remainingPrincipal+futureInterest);loan.remainingAmount=money(loan.remainingPrincipal+futureInterest);loan.studentAccountBalance=account(loan.studentUserId).balance;loan.updatedAt=now();
+    if(loan.remainingPrincipal<=0){loan.status='repaid';return '중도상환으로 대출 원금을 모두 상환했습니다.';}
+    const remainingCount=Math.max(1,loan.installmentCount-paidBills.length);let assigned=0;
+    for(let offset=0;offset<remainingCount;offset+=1){const index=paidBills.length+offset+1,billId=id(),billAmount=offset===remainingCount-1?money(loan.remainingAmount-assigned):money(loan.remainingAmount/remainingCount),due=new Date();due.setDate(due.getDate()+loan.installmentIntervalDays*offset);state.taxes.push({id:billId,name:`대출 ${index}회차 상환`,amount:billAmount,dueDate:due.toISOString(),teacher_id:teacher,itemType:'loan_installment',loanContractId:loan.id,installmentNumber:index,enabled:true,createdAt:now()});state.taxPayments.push({userId:loan.studentUserId,taxId:billId,paid:false});assigned=money(assigned+billAmount);}
+    return `중도상환 ${amount}원이 처리되었습니다.`;
   },
   requestEarlyLoanRepayment: (_teacherId, loanId) => {
     const loan:any=required(state.loanContracts.find((row:any)=>row.id===loanId));
@@ -376,6 +401,7 @@ const local: LocalApi = {
     if(contractId){const row:any=required(state.realEstateContracts.find((item:any)=>item.id===contractId));Object.assign(row,input,{updatedAt:stamp});return row;}
     const row:any={...input,id:id(),teacherId:teacher,studentName:user(input.studentUserId)?.name||'',counterpartyName:input.counterpartyUserId?user(input.counterpartyUserId)?.name||'':undefined,createdAt:stamp,updatedAt:stamp};state.realEstateContracts.push(row);return row;
   },
+  deleteRealEstateContract: (_teacherId,contractId) => {required(state.realEstateContracts.find((row:any)=>row.id===contractId));state.realEstateContracts=state.realEstateContracts.filter((row:any)=>row.id!==contractId);return '부동산 계약을 삭제했습니다.';},
   getHighValueTransferAlerts: () => {
     const seen=new Set<string>(); return state.transactions.filter(t=>t.type===T.TRANSFER&&Number(t.amount)>=30&&t.senderId&&t.receiverId&&user(t.senderId)?.role===Role.STUDENT&&user(t.receiverId)?.role===Role.STUDENT).filter(t=>{const key=`${t.senderId}:${t.receiverId}:${t.amount}:${t.date}`;if(seen.has(key))return false;seen.add(key);return true;}).map(t=>({transactionId:t.transactionId,senderUserId:t.senderId,senderName:user(t.senderId)?.name||'',receiverUserId:t.receiverId,receiverName:user(t.receiverId)?.name||'',amount:Number(t.amount),memo:t.description||'',createdAt:t.date}));
   },

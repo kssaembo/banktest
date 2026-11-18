@@ -194,6 +194,29 @@ test('loan payout is idempotent and due bills reuse tax payment', async () => {
   assert.equal(await balance(student), studentBefore + 400 - 220);
   assert.equal((await api.getTeacherAccount())!.balance, treasuryBefore - 400 + 220);
 });
+test('draft loan deletion and partial repayment update balances and remaining interest', async () => {
+  const draft = await api.createLoanContract(teacher, {
+    studentUserId: student, principal: 75, interestRate: 10, installmentCount: 3,
+    installmentIntervalDays: 7, startDate: new Date().toISOString().slice(0, 10), specialTerms: ''
+  });
+  await api.deleteLoanContract(teacher, draft.id);
+  assert.equal((await api.getLoanContracts(teacher)).some(row => row.id === draft.id), false);
+
+  const loan = await api.createLoanContract(teacher, {
+    studentUserId: student, principal: 100, interestRate: 10, installmentCount: 2,
+    installmentIntervalDays: 7, startDate: new Date().toISOString().slice(0, 10), specialTerms: ''
+  });
+  await api.disburseLoan(teacher, loan.id);
+  const studentBefore = await balance(student);
+  const treasuryBefore = (await api.getTeacherAccount())!.balance;
+  await api.makePartialLoanRepayment(teacher, loan.id, 40);
+  const updated = (await api.getLoanContracts(teacher)).find(row => row.id === loan.id)!;
+  assert.equal(await balance(student), studentBefore - 40);
+  assert.equal((await api.getTeacherAccount())!.balance, treasuryBefore + 40);
+  assert.equal(updated.remainingPrincipal, 60);
+  assert.equal(updated.remainingAmount, 66);
+  assert.equal(updated.partialRepaymentAmount, 40);
+});
 test('real-estate contracts allow multiple records and student read-only lookup', async () => {
   await api.saveRealEstateContract(teacher, {
     studentUserId: student, counterpartyUserId: 'guest_student_2', contractType: 'monthly_rent', propertyName: '교실 상가', address: 'A구역',
@@ -210,6 +233,15 @@ test('real-estate contracts allow multiple records and student read-only lookup'
   const counterpartRows = await api.getStudentRealEstateContracts('guest_student_2');
   assert.equal(counterpartRows.length, 1);
   assert.equal(counterpartRows[0].counterpartyName, '이서연');
+});
+test('real-estate contracts can be deleted by the teacher', async () => {
+  const contract = await api.saveRealEstateContract(teacher, {
+    studentUserId: student, contractType: 'sale', propertyName: '삭제 테스트', address: '9번',
+    studentRole: 'buyer', transactionAmount: 100, deposit: 0, monthlyRent: 0,
+    contractDate: new Date().toISOString().slice(0,10), specialTerms: '', status: 'active'
+  });
+  await api.deleteRealEstateContract(teacher, contract.id);
+  assert.equal((await api.getRealEstateContracts(teacher)).some(row => row.id === contract.id), false);
 });
 test('high-value alerts include 30 but exclude 29 and teacher transfers', async () => {
   const recipient = (await api.getStudentAccountByUserId('guest_student_2'))!;

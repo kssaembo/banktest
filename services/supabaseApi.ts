@@ -947,8 +947,12 @@ const mapLoan = (row: any): LoanContract => ({
     totalInterest: Number(row.total_interest || 0), totalRepayment: Number(row.total_repayment || 0),
     installmentCount: Number(row.installment_count || 0), installmentIntervalDays: Number(row.installment_interval_days || 7),
     startDate: row.start_date, specialTerms: row.special_terms || '', status: row.status,
-    disbursedAt: row.disbursed_at || undefined, paidAmount: Number(row.paid_amount || 0),
+    disbursedAt: row.disbursed_at || undefined, studentAccountId: row.student_account_id || undefined,
+    studentAccountBalance: row.student_account_balance == null ? undefined : Number(row.student_account_balance),
+    paidAmount: Number(row.paid_amount || 0),
     remainingAmount: Number(row.remaining_amount ?? row.total_repayment ?? 0),
+    remainingPrincipal: Number(row.remaining_principal ?? row.principal ?? 0),
+    partialRepaymentAmount: Number(row.partial_repayment_amount || 0),
     paidInstallments: Number(row.paid_installments || 0), createdAt: row.created_at, updatedAt: row.updated_at
 });
 
@@ -992,6 +996,20 @@ const requestEarlyLoanRepayment = async (teacherId: string, loanId: string): Pro
     return data || '조기상환 고지서를 만들었습니다.';
 };
 
+const makePartialLoanRepayment = async (teacherId: string, loanId: string, amount: number): Promise<string> => {
+    const { data, error } = await supabase.rpc('classbank_make_partial_loan_repayment', {
+        p_teacher_id: teacherId, p_loan_id: loanId, p_amount: amount
+    });
+    handleSupabaseError(error, 'makePartialLoanRepayment');
+    return data || '중도상환을 완료했습니다.';
+};
+
+const deleteLoanContract = async (teacherId: string, loanId: string): Promise<string> => {
+    const { data, error } = await supabase.rpc('classbank_delete_loan_contract', { p_teacher_id: teacherId, p_loan_id: loanId });
+    handleSupabaseError(error, 'deleteLoanContract');
+    return data || '대출 계약을 삭제했습니다.';
+};
+
 const mapRealEstate = (row: any): RealEstateContract => ({
     id: row.id, teacherId: row.teacher_id, studentUserId: row.student_user_id, studentName: row.student_name,
     counterpartyUserId: row.counterparty_user_id || undefined, counterpartyName: row.counterparty_name || undefined,
@@ -1025,6 +1043,12 @@ const saveRealEstateContract = async (teacherId: string, input: RealEstateContra
     });
     handleSupabaseError(error, 'saveRealEstateContract');
     return mapRealEstate(data);
+};
+
+const deleteRealEstateContract = async (teacherId: string, contractId: string): Promise<string> => {
+    const { data, error } = await supabase.rpc('classbank_delete_real_estate_contract', { p_teacher_id: teacherId, p_contract_id: contractId });
+    handleSupabaseError(error, 'deleteRealEstateContract');
+    return data || '부동산 계약을 삭제했습니다.';
 };
 
 const getHighValueTransferAlerts = async (teacherId: string): Promise<HighValueTransferAlert[]> => {
@@ -1371,7 +1395,8 @@ const baseApi = {
     getEconomyStories, createEconomyStory, setEconomyStoryStatus, getEconomyStoryComments, addEconomyStoryComment, updateEconomyStoryComment, toggleEconomyStoryReaction, deleteEconomyStoryComments, rewardEconomyStoryComments,
     getMartItems, addMartItem, updateMartItem, deleteMartItem,
     getLoanContracts, createLoanContract, updateLoanContract, disburseLoan, requestEarlyLoanRepayment,
-    getRealEstateContracts, getStudentRealEstateContracts, saveRealEstateContract, getHighValueTransferAlerts
+    makePartialLoanRepayment, deleteLoanContract,
+    getRealEstateContracts, getStudentRealEstateContracts, saveRealEstateContract, deleteRealEstateContract, getHighValueTransferAlerts
 };
 
 export const api = baseApi;
